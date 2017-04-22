@@ -12,8 +12,8 @@ data class BoardDim(val boardLeft : Double, val boardTop : Double, val boardWidt
 
 fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Int, y : Int) {
     var imageSource : CanvasImageSource = assets.sprites.asDynamic()
-    var spx = spriteId % 200
-    var spy = spriteId / 200
+    var spx = spriteId % 20
+    var spy = spriteId / 20
     ctx.drawImage(imageSource, spx * 50.0, spy * 50.0, 50.0, 50.0, dim.boardLeft + x * dim.tileSize + 1, dim.boardTop + y * dim.tileSize + 1, dim.tileSize - 2.0, dim.tileSize - 2.0)
 }
 
@@ -65,6 +65,8 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
             // Render objects
             if (board.square[idx].role == SquareRole.HEALING_BED) {
                 placeSprite(assets, dim, ctx, 1, j, i)
+            } else if (board.square[idx].role == SquareRole.COMMAND_SEAT) {
+                placeSprite(assets, dim, ctx, 2, j, i)
             } else if (door != null) {
                 ctx.fillStyle = "#e5e5e5"
                 ctx.strokeStyle = "black"
