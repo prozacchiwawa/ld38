@@ -98,7 +98,7 @@ fun simpleBoardConvert(vararg s : String) : GameState {
     val boardContents = ArrayList<Square>()
     val commandChairs : MutableMap<SquareAssoc, Pair<Int, Int>> = mutableMapOf()
     val doors : MutableMap<Int, DoorState> = mutableMapOf()
-    val spawns : MutableSet<Pair<Int,Int>> = mutableSetOf()
+    val spawns : MutableSet<Int> = mutableSetOf()
 
     for (i in 0..(ydim - 1)) {
         for (j in 0..(xdim - 1)) {
@@ -121,7 +121,7 @@ fun simpleBoardConvert(vararg s : String) : GameState {
                 commandChairs.put(SquareAssoc.ENGINEERING, Pair(j, i))
                 boardContents.add(Square(SquareRole.COMMAND_SEAT, SquareAssoc.ENGINEERING, 0))
             } else if (ch == 'X') {
-                spawns.add(Pair(j, i))
+                spawns.add(idx)
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else {
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
@@ -157,8 +157,9 @@ fun simpleBoardConvert(vararg s : String) : GameState {
     }
 
     val characters : MutableMap<String,Character> = mutableMapOf()
-    for (coord in spawns) {
-        val idx = coord.second * xdim
+    for (idx in spawns) {
+        var i = idx / xdim
+        var j = idx % xdim
         val square = boardContents[idx]
         val charClass = charClassFromAssoc(square.assoc)
         val nameNumber = (names.size * rand()).toInt()
@@ -170,7 +171,7 @@ fun simpleBoardConvert(vararg s : String) : GameState {
         }
         val id = idx.toString()
         console.log(name)
-        characters.put(id, Character(id, rank + " " + name, coord.first, coord.second, charClass, -1, CHAR_START_HP))
+        characters.put(id, Character(id, rank + " " + name, j, i, charClass, -1, CHAR_START_HP))
     }
 
     val board = GameBoard(xdim, ydim, boardContents.toTypedArray(), doors)
