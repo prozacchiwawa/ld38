@@ -40,33 +40,67 @@ val error = kotlin.browser.window.document.getElementById("error")
 val errorContent = kotlin.browser.window.document.getElementById("error-content")
 var assets = Assets()
 
-fun rungame() {
+interface IGameMode {
+    abstract fun runMode(t : Double) : IGameMode
+    abstract fun getState() : GameState
+}
+
+class YourTurnMode(var state : GameState) : IGameMode {
+    override fun runMode(t : Double) : IGameMode {
+        return this
+    }
+
+    override fun getState() : GameState {
+        return state
+    }
+}
+
+fun doWithException(doit : () -> Unit) {
     try {
-        var running = testBoard
-
-        fun onResize(evt : dynamic) {
-            screenX = kotlin.browser.window.innerWidth.toInt()
-            screenY = kotlin.browser.window.innerHeight.toInt()
-            var lc = getRenderContext()
-            if (lc != null) {
-                drawBoard(screenX, screenY, lc, running, assets)
-            } else {
-                throw Exception("No canvas named main")
-            }
-        }
-
-        kotlin.browser.window.addEventListener("resize", { evt -> onResize(evt); })
-
-        val context = getRenderContext()
-        if (context != null) {
-            drawBoard(screenX, screenY, context, running, assets)
-        } else {
-            throw Exception("No canvas named main")
-        }
+        doit()
     } catch (e : Exception) {
         if (error != null && errorContent != null) {
             doError(error, errorContent, "${e}");
         }
+    }
+}
+
+class GameAnimator(var mode : IGameMode) {
+    fun runFrame() {
+        doWithException {
+            val t : Double = getCurTime();
+            val delta = t - lastTime
+            lastTime = t
+            mode = mode.runMode(t)
+            kotlin.browser.window.requestAnimationFrame { runFrame() }
+            val context = getRenderContext()
+            if (context != null) {
+                drawBoard(screenX, screenY, context, mode.getState(), assets)
+            } else {
+                throw Exception("No canvas named main")
+            }
+        }
+    }
+
+    fun start() {
+        doWithException {
+            kotlin.browser.window.requestAnimationFrame { runFrame() }
+        }
+    }
+}
+
+fun rungame() {
+    doWithException {
+        fun onResize(evt : dynamic) {
+            screenX = kotlin.browser.window.innerWidth.toInt()
+            screenY = kotlin.browser.window.innerHeight.toInt()
+        }
+
+        kotlin.browser.window.addEventListener("resize", { evt -> onResize(evt); })
+
+        var running = testBoard
+        val ga = GameAnimator(YourTurnMode(running))
+        ga.start()
     }
 }
 

@@ -56,8 +56,10 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
     }
     // Render people
     for (p in chars) {
-        console.log("char",p)
         var imageSource : CanvasImageSource = assets.sprites.asDynamic()
         ctx.drawImage(imageSource, 0.0, 0.0, 50.0, 50.0, boardLeft + p.value.x * tileSize + 1, boardTop + p.value.y * tileSize + 1, tileSize - 2, tileSize - 2)
     }
+    // Timer
+    ctx.fillStyle = "black"
+    ctx.fillText("Time: " + lastTime, 0.0, 12.0, screenx.toDouble())
 }
