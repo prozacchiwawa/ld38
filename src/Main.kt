@@ -114,6 +114,8 @@ class YourTurnIntroMode(var state : GameState) : IGameMode {
         var alpha = 0.5
         if (elapsed > 4.0) {
             alpha = 0.5 * (5.0 - elapsed)
+        } else if (elapsed < 1.0) {
+            alpha = 0.5 * elapsed
         }
         ctx.fillStyle = "rgba(0,0,0,${alpha})"
         ctx.fillRect(0.0, 0.0, screenX.toDouble(), screenY.toDouble())
@@ -128,10 +130,26 @@ class YourTurnIntroMode(var state : GameState) : IGameMode {
 }
 
 class YourTurnMode(var state : GameState) : IGameMode {
-    val hasTurn : MutableSet<String> = mutableSetOf()
+    val hasTurn : MutableSet<String> = getHasTurn(state.logical.characters)
+    var elapsed = 0.0
+
+    fun getHasTurn(chars : Map<String, Character>) : MutableSet<String> {
+        val res : MutableSet<String> = mutableSetOf()
+        for (kv in chars) {
+            if (kv.value.team == 0) {
+                res.add(kv.key)
+            }
+        }
+        return res
+    }
 
     override fun runMode(t : Double) : IGameMode {
-        return this
+        elapsed += t
+        if (hasTurn.count() < 1) {
+            return YourTurnIntroMode(state)
+        } else {
+            return this
+        }
     }
 
     override fun getState() : GameState {
@@ -152,6 +170,17 @@ class YourTurnMode(var state : GameState) : IGameMode {
     }
 
     override fun overlay(ctx : CanvasRenderingContext2D) {
+        val board = state.logical.board
+        val dim = getBoardSize(screenX, screenY, board)
+        for (name in hasTurn) {
+            val ch = state.logical.characters.get(name)
+            if (ch != null) {
+                var cycle = elapsed * 2.0
+                var stage = elapsed - Math.floor(elapsed)
+                var sprite = Math.floor(3.0 + (stage * 4.0))
+                placeSprite(assets, dim, ctx, sprite, ch.x, ch.y)
+            }
+        }
     }
 }
 

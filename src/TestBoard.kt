@@ -182,6 +182,7 @@ fun simpleBoardConvert(vararg s : String) : GameState {
     }
 
     val characters : MutableMap<String,Character> = mutableMapOf()
+    val chosenNames = ArrayList<String>()
     for (idx in spawns) {
         var i = idx / xdim
         var j = idx % xdim
@@ -192,7 +193,15 @@ fun simpleBoardConvert(vararg s : String) : GameState {
             fullName = rollName(square)
         }
         console.log(fullName)
+        chosenNames.add(fullName)
         characters.put(fullName, Character(fullName, fullName, j, i, charClass, -1, CHAR_START_HP))
+    }
+
+    // Select a character randomly to be the player char's starting faction member
+    val whoAmI = chosenNames[Math.floor(rand() * chosenNames.size)]
+    val myChar = characters.get(whoAmI)
+    if (myChar != null) {
+        characters.put(whoAmI, myChar.copy(team = 0))
     }
 
     val board = GameBoard(xdim, ydim, boardContents.toTypedArray(), doors)
