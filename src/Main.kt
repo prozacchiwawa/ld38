@@ -107,7 +107,7 @@ class YourTurnIntroMode(var state : GameState) : IGameMode {
     }
 
     override fun click(x : Double, y : Double) {
-        elapsed = 2.0
+        elapsed = 5.0
     }
 
     override fun overlay(ctx : CanvasRenderingContext2D) {
