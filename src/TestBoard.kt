@@ -54,20 +54,30 @@ fun simpleBoardConvert(vararg s : String) : GameBoard {
     }
 
     for (coord in commandChairs) {
-        val nextPoint = ArrayList<Pair<Int,Int>>()
-        nextPoint.add(coord.value)
-        while (nextPoint.count() > 0) {
-            val pt = nextPoint[0]
+        val visited : MutableSet<Pair<Int,Int>> = mutableSetOf()
+        val nextPoint : MutableSet<Pair<Int,Int>> = mutableSetOf()
+        val gonext =
+                { pt : Pair<Int,Int> ->
+                    if (!visited.contains(pt)) {
+                        console.log(pt)
+                        visited.add(pt)
+                        nextPoint.add(pt)
+                    }
+                }
+        gonext(coord.value)
+        while (!nextPoint.isEmpty()) {
+            val pt = nextPoint.first()
+            console.log(pt)
+            nextPoint.remove(pt)
             var idx = (pt.second * xdim) + pt.first
-            nextPoint.removeAt(0)
             val sq = getSquare(xdim, boardContents, pt.first, pt.second)
             val door = doors.get(idx)
-            if (door != null && sq.role != SquareRole.WALL) {
+            if (door == null && sq.role != SquareRole.WALL) {
                 boardContents[idx] = boardContents[idx].copy(assoc = coord.key)
-                nextPoint.add(Pair(pt.first - 1, pt.second))
-                nextPoint.add(Pair(pt.first + 1, pt.second))
-                nextPoint.add(Pair(pt.first, pt.second - 1))
-                nextPoint.add(Pair(pt.first, pt.second + 1))
+                gonext(Pair(pt.first - 1, pt.second))
+                gonext(Pair(pt.first + 1, pt.second))
+                gonext(Pair(pt.first, pt.second - 1))
+                gonext(Pair(pt.first, pt.second + 1))
             }
         }
     }
