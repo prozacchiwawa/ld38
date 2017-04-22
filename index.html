@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Alert!</title>
+    <style>
+        .error {
+            position: absolute;
+            display: flex;
+            left: 0;
+            top: -100%;
+            height: 100%;
+            width: 100%;
+            background-color: rgba(0,0,0,0.7);
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            transition: top 0.3s;
+        }
+
+        .error-center {
+            position: relative;
+            display: flex;
+            color: black;
+            background-color: #b79668;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        #main {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: magenta;
+        }
+    </style>
+</head>
+<body>
+    <div id="error" class="error">
+        <div id="error-content" class="error-center">
+        </div>
+    </div>
+    <canvas id="main"></canvas>
+    <script src="lib/kotlin.js"></script>
+    <script src="ld38.js"></script>
+</body>
+</html>
