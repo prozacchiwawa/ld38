@@ -58,8 +58,9 @@ class YourTurnMode(var state : GameState) : IGameMode {
     override fun click(x : Double, y : Double) {
         val board = state.logical.board
         val dim = getBoardSize(screenX, screenY, board)
-        val xTile = Math.floor((x - dim.boardWidth) / dim.tileSize)
-        val yTile = Math.floor((y - dim.boardHeight) / dim.tileSize)
+        val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
+        val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
+        console.log("mouse click ",xTile,yTile)
         if (xTile < 0 || yTile < 0 || xTile >= board.dimX || yTile >= board.dimY) {
             state.sel = null
         } else {
@@ -115,7 +116,7 @@ fun rungame() {
         var running = testBoard
         val ga = GameAnimator(YourTurnMode(running))
 
-        kotlin.browser.window.addEventListener("mouseclick", { evt : dynamic ->
+        kotlin.browser.window.addEventListener("click", { evt : dynamic ->
             ga.getMode().click(evt.clientX, evt.clientY)
         })
 
