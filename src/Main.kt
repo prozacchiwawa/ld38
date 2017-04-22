@@ -44,9 +44,92 @@ interface IGameMode {
     abstract fun runMode(t : Double) : IGameMode
     abstract fun getState() : GameState
     abstract fun click(x : Double, y : Double)
+    abstract fun overlay(ctx : CanvasRenderingContext2D)
+}
+
+//
+// When it's my turn, I can click on things
+// There's a simple state machine transitioned by click
+//
+// Nothing Selected ->
+//   Non character selected -> describe window
+//   Char selected -> Describe char window
+//
+// describe char window ->
+//   Special effect button -> specialEffect(char)
+//   Attack button -> attack(char)
+//   Facing -> facing(char)
+//   Highlighted squares -> move(char)
+//
+// facing ->
+//   char.turn() -> describe char window
+//
+// attack ->
+//   char.attack()
+//   hasTurn.remove(char)
+//   ephemeralAnimation(char.specialAnim)
+//   if hasTurn.count > 0 then
+//     Nothing selected
+//   else
+//     End turn
+//
+// move ->
+//   char.move()
+//   selection.moveTo(char)
+//   describe char window
+//
+// specialEffect
+//   char.specialEffect()
+//   hasTurn.remove(char)
+//   ephemeralAnimation(char.specialAnim)
+//   if hasTurn.count > 0 then
+//     Nothing selected
+//   else
+//     End turn
+//
+// describe window -> Nothing selected
+//
+
+class YourTurnIntroMode(var state : GameState) : IGameMode {
+    var elapsed = 0.0
+
+    override fun runMode(t : Double) : IGameMode {
+        elapsed += t
+        if (elapsed > 5.0) {
+            return YourTurnMode(state)
+        } else {
+            return this
+        }
+    }
+
+    override fun getState() : GameState {
+        return state
+    }
+
+    override fun click(x : Double, y : Double) {
+        elapsed = 2.0
+    }
+
+    override fun overlay(ctx : CanvasRenderingContext2D) {
+        var alpha = 0.5
+        if (elapsed > 4.0) {
+            alpha = 0.5 * (5.0 - elapsed)
+        }
+        ctx.fillStyle = "rgba(0,0,0,${alpha})"
+        ctx.fillRect(0.0, 0.0, screenX.toDouble(), screenY.toDouble())
+        ctx.font = "48px serif"
+        val tmetrics = ctx.measureText("Your Move")
+        val tleft = (screenX.toDouble() - tmetrics.width) / 2.0
+        val ttop = (screenY - 48.0) / 2.0
+        console.log(tleft,ttop)
+        ctx.fillStyle = "rgba(255,255,255,1)"
+        ctx.fillText("Your Move", tleft, ttop)
+    }
 }
 
 class YourTurnMode(var state : GameState) : IGameMode {
+    val hasTurn : MutableSet<String> = mutableSetOf()
+
     override fun runMode(t : Double) : IGameMode {
         return this
     }
@@ -67,6 +150,9 @@ class YourTurnMode(var state : GameState) : IGameMode {
             state.sel = Pair(xTile.toInt(), yTile.toInt())
         }
     }
+
+    override fun overlay(ctx : CanvasRenderingContext2D) {
+    }
 }
 
 fun doWithException(doit : () -> Unit) {
@@ -86,11 +172,12 @@ class GameAnimator(var mode : IGameMode) {
             val t : Double = getCurTime();
             val delta = t - lastTime
             lastTime = t
-            mode = mode.runMode(t)
+            mode = mode.runMode(delta)
             kotlin.browser.window.requestAnimationFrame { runFrame() }
             val context = getRenderContext()
             if (context != null) {
                 drawBoard(screenX, screenY, context, mode.getState(), assets)
+                mode.overlay(context)
             } else {
                 throw Exception("No canvas named main")
             }
@@ -114,7 +201,7 @@ fun rungame() {
         kotlin.browser.window.addEventListener("resize", { evt -> onResize(evt); })
 
         var running = testBoard
-        val ga = GameAnimator(YourTurnMode(running))
+        val ga = GameAnimator(YourTurnIntroMode(running))
 
         kotlin.browser.window.addEventListener("click", { evt : dynamic ->
             ga.getMode().click(evt.clientX, evt.clientY)
