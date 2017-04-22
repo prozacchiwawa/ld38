@@ -35,20 +35,21 @@ fun getRenderContext() : org.w3c.dom.CanvasRenderingContext2D? {
     return context
 }
 
-fun main(args: Array<String>) {
-    val rawWindow : dynamic = kotlin.browser.window
-    val error = kotlin.browser.window.document.getElementById("error")
-    val errorContent = kotlin.browser.window.document.getElementById("error-content")
+val rawWindow : dynamic = kotlin.browser.window
+val error = kotlin.browser.window.document.getElementById("error")
+val errorContent = kotlin.browser.window.document.getElementById("error-content")
+var assets = Assets()
+
+fun rungame() {
     try {
-        var state = GameStateData(mapOf(), testBoard)
-        var running = GameState(state)
+        var running = testBoard
 
         fun onResize(evt : dynamic) {
             screenX = kotlin.browser.window.innerWidth.toInt()
             screenY = kotlin.browser.window.innerHeight.toInt()
             var lc = getRenderContext()
             if (lc != null) {
-                drawBoard(screenX, screenY, lc, running.logical.board)
+                drawBoard(screenX, screenY, lc, running, assets)
             } else {
                 throw Exception("No canvas named main")
             }
@@ -58,7 +59,7 @@ fun main(args: Array<String>) {
 
         val context = getRenderContext()
         if (context != null) {
-            drawBoard(screenX, screenY, context, running.logical.board)
+            drawBoard(screenX, screenY, context, running, assets)
         } else {
             throw Exception("No canvas named main")
         }
@@ -67,4 +68,9 @@ fun main(args: Array<String>) {
             doError(error, errorContent, "${e}");
         }
     }
+}
+
+fun main(args: Array<String>) {
+    assets.addLoadListener { rungame() }
+    assets.start()
 }

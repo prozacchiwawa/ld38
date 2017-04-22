@@ -5,6 +5,7 @@
 package ldjam.prozacchiwawa
 
 val DOOR_START_HP = 50
+val CHAR_START_HP = 30
 
 public enum class CharClass {
     OFFICER, LIFESUPPORT, ENGINEER, DOCTOR, SECURITY

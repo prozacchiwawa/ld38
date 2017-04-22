@@ -4,7 +4,67 @@
 
 package ldjam.prozacchiwawa
 
+import org.w3c.dom.CharacterData
 import java.util.*
+
+val normalRanks : ArrayList<String> =
+        arrayListOf("crewman", "ensign", "chief")
+val officerRanks : ArrayList<String> =
+        arrayListOf("lt.", "lt.cmdr.", "cmdr.")
+
+val names : ArrayList<String> =
+    arrayListOf(
+    "Sophia", 	"Aiden",
+    "Emma", 	"Jackson",
+    "Olivia", 	"Ethan",
+    "Isabella", 	"Liam",
+    "Ava", 	"Mason",
+    "Lily", 	"Noah",
+    "Zoe", 	"Lucas",
+    "Chloe", 	"Jacob",
+    "Mia", 	"Jayden",
+    "Madison", 	"Jack",
+    "Emily", 	"Logan",
+    "Ella", 	"Ryan",
+    "Madelyn", 	"Caleb",
+    "Abigail", 	"Benjamin",
+    "Aubrey", 	"William",
+    "Addison", 	"Michael",
+    "Avery", 	"Alexander",
+    "Layla", 	"Elijah",
+    "Hailey", 	"Matthew",
+    "Amelia", 	"Dylan",
+    "Hannah", 	"James",
+    "Charlotte", 	"Owen",
+    "Kaitlyn", 	"Connor",
+    "Harper", 	"Brayden",
+    "Kaylee", 	"Carter",
+    "Sophie", 	"Landon",
+    "Mackenzie", 	"Joshua",
+    "Peyton", 	"Luke",
+    "Riley", 	"Daniel",
+    "Grace", 	"Gabriel",
+    "Brooklyn", 	"Nicholas",
+    "Sarah", 	"Nathan",
+    "Aaliyah", 	"Oliver",
+    "Anna", 	"Henry",
+    "Arianna", 	"Andrew",
+    "Ellie", 	"Gavin",
+    "Natalie", 	"Cameron",
+    "Isabelle", 	"Eli",
+    "Lillian", 	"Max",
+    "Evelyn", 	"Isaac",
+    "Elizabeth", 	"Evan",
+    "Lyla", 	"Samuel",
+    "Lucy", 	"Grayson",
+    "Claire", 	"Tyler",
+    "Makayla", 	"Zachary",
+    "Kylie", 	"Wyatt",
+    "Audrey", 	"Joseph",
+    "Maya", 	"Charlie",
+    "Leah", 	"Hunter",
+    "Gabriella", 	"David"
+    )
 
 fun getSquare(xdim : Int, board : ArrayList<Square>, x : Int, y : Int) : Square {
     val idx = (y * xdim) + x
@@ -12,8 +72,21 @@ fun getSquare(xdim : Int, board : ArrayList<Square>, x : Int, y : Int) : Square 
     return square
 }
 
-fun simpleBoardConvert(vararg s : String) : GameBoard {
-    console.log("simpleBoardConvert")
+fun charClassFromAssoc(assoc: SquareAssoc) : CharClass {
+    when (assoc) {
+        SquareAssoc.ENGINEERING ->
+                return CharClass.ENGINEER
+        SquareAssoc.LIFE_SUPPORT ->
+                return CharClass.LIFESUPPORT
+        SquareAssoc.BRIDGE ->
+                return CharClass.OFFICER
+        SquareAssoc.MEDICAL ->
+                return CharClass.DOCTOR
+    }
+    return CharClass.SECURITY
+}
+
+fun simpleBoardConvert(vararg s : String) : GameState {
     val ydim = s.size
     var xdim = 0
     for (i in 0..(ydim - 1)) {
@@ -22,10 +95,10 @@ fun simpleBoardConvert(vararg s : String) : GameBoard {
             xdim = st.size
         }
     }
-    console.log("simpleBoardConvert 2")
     val boardContents = ArrayList<Square>()
     val commandChairs : MutableMap<SquareAssoc, Pair<Int, Int>> = mutableMapOf()
     val doors : MutableMap<Int, DoorState> = mutableMapOf()
+    val spawns : MutableSet<Pair<Int,Int>> = mutableSetOf()
 
     for (i in 0..(ydim - 1)) {
         for (j in 0..(xdim - 1)) {
@@ -45,8 +118,11 @@ fun simpleBoardConvert(vararg s : String) : GameBoard {
                 doors.put(idx, DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, false, false, false, false))
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else if (ch == 'E') {
-                commandChairs.put(SquareAssoc.ENGINEERING, Pair(j,i))
+                commandChairs.put(SquareAssoc.ENGINEERING, Pair(j, i))
                 boardContents.add(Square(SquareRole.COMMAND_SEAT, SquareAssoc.ENGINEERING, 0))
+            } else if (ch == 'X') {
+                spawns.add(Pair(j, i))
+                boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else {
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             }
@@ -59,7 +135,6 @@ fun simpleBoardConvert(vararg s : String) : GameBoard {
         val gonext =
                 { pt : Pair<Int,Int> ->
                     if (!visited.contains(pt)) {
-                        console.log(pt)
                         visited.add(pt)
                         nextPoint.add(pt)
                     }
@@ -67,7 +142,6 @@ fun simpleBoardConvert(vararg s : String) : GameBoard {
         gonext(coord.value)
         while (!nextPoint.isEmpty()) {
             val pt = nextPoint.first()
-            console.log(pt)
             nextPoint.remove(pt)
             var idx = (pt.second * xdim) + pt.first
             val sq = getSquare(xdim, boardContents, pt.first, pt.second)
@@ -82,21 +156,38 @@ fun simpleBoardConvert(vararg s : String) : GameBoard {
         }
     }
 
-    console.log("simpleBoardConvert ",xdim,",",ydim)
-    return GameBoard(xdim, ydim, boardContents.toTypedArray(), doors)
+    val characters : MutableMap<String,Character> = mutableMapOf()
+    for (coord in spawns) {
+        val idx = coord.second * xdim
+        val square = boardContents[idx]
+        val charClass = charClassFromAssoc(square.assoc)
+        val nameNumber = (names.size * rand()).toInt()
+        val name = names[nameNumber]
+        val rankNumber = (3 * rand()).toInt()
+        var rank = normalRanks[rankNumber]
+        if (square.assoc == SquareAssoc.BRIDGE) {
+            rank = officerRanks[rankNumber]
+        }
+        val id = idx.toString()
+        console.log(name)
+        characters.put(id, Character(id, rank + " " + name, coord.first, coord.second, charClass, -1, CHAR_START_HP))
+    }
+
+    val board = GameBoard(xdim, ydim, boardContents.toTypedArray(), doors)
+    return GameState(GameStateData(characters, board))
 }
 
 var testBoard =
     simpleBoardConvert(
             "####################################",
-            "#   #    #       #     E           #",
-            "#   #    #       #                 #",
-            "##-####-########-#                 #",
+            "#   #  X # X     #     E   X       #",
+            "# X #    #    X  #     X           #",
+            "##-####-########-#   X        X    #",
             "##               #                 #",
             "########-####### #############-#####",
-            "#              |                 ###",
-            "#              ##############-######",
-            "#              #                   #",
-            "#              #                   #",
+            "#   X       X  |                 ###",
+            "#     X        ##############-######",
+            "#       X      #    X   X      X   #",
+            "#  X           #                   #",
             "####################################"
             )

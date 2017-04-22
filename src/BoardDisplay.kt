@@ -4,12 +4,15 @@
 
 package ldjam.prozacchiwawa
 
+import org.w3c.dom.CanvasImageSource
 import org.w3c.dom.CanvasRenderingContext2D
 
 val roomColors =
         mutableMapOf(Pair(SquareAssoc.ENGINEERING, "rgba(192,86,85,0.3)"))
 
-fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, board : GameBoard) {
+fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, state : GameState, assets : Assets) {
+    var board = state.logical.board
+    var chars = state.logical.characters
     val height80Pct = screeny.toDouble() * 0.8
     val width80Pct = screenx.toDouble() * 0.8
     val tileWidthMax = width80Pct / board.dimX
@@ -19,7 +22,7 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, boar
     val boardWidth = board.dimX * tileSize
     val boardTop = (screeny - boardHeight) / 2
     val boardLeft = (screenx - boardWidth) / 2
-    console.log("boardLeft",boardLeft,"boardTop",boardTop,"boardWidth",boardWidth,"boardHeight",boardHeight)
+    // Render world
     ctx.fillStyle = "black"
     ctx.fillRect(boardLeft, boardTop, boardWidth, boardHeight)
     for (i in 0..(board.dimY - 1)) {
@@ -50,5 +53,11 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, boar
                 }
             }
         }
+    }
+    // Render people
+    for (p in chars) {
+        console.log("char",p)
+        var imageSource : CanvasImageSource = assets.sprites.asDynamic()
+        ctx.drawImage(imageSource, 0.0, 0.0, 50.0, 50.0, boardLeft + p.value.x * tileSize + 1, boardTop + p.value.y * tileSize + 1, tileSize - 2, tileSize - 2)
     }
 }
