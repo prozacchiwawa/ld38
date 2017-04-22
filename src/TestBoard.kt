@@ -86,6 +86,17 @@ fun charClassFromAssoc(assoc: SquareAssoc) : CharClass {
     return CharClass.SECURITY
 }
 
+fun rollName(square : Square) : String {
+    val nameNumber = (names.size * rand()).toInt()
+    val name = names[nameNumber]
+    val rankNumber = (3 * rand()).toInt()
+    var rank = normalRanks[rankNumber]
+    if (square.assoc == SquareAssoc.BRIDGE) {
+        rank = officerRanks[rankNumber]
+    }
+    return rank + " " + name
+}
+
 fun simpleBoardConvert(vararg s : String) : GameState {
     val ydim = s.size
     var xdim = 0
@@ -120,6 +131,20 @@ fun simpleBoardConvert(vararg s : String) : GameState {
             } else if (ch == 'E') {
                 commandChairs.put(SquareAssoc.ENGINEERING, Pair(j, i))
                 boardContents.add(Square(SquareRole.COMMAND_SEAT, SquareAssoc.ENGINEERING, 0))
+            } else if (ch == 'B') {
+                commandChairs.put(SquareAssoc.BRIDGE, Pair(j, i))
+                boardContents.add(Square(SquareRole.COMMAND_SEAT, SquareAssoc.BRIDGE, 0))
+            } else if (ch == 'M') {
+                commandChairs.put(SquareAssoc.MEDICAL, Pair(j, i))
+                boardContents.add(Square(SquareRole.COMMAND_SEAT, SquareAssoc.MEDICAL, 0))
+            } else if (ch == 'L') {
+                commandChairs.put(SquareAssoc.LIFE_SUPPORT, Pair(j, i))
+                boardContents.add(Square(SquareRole.COMMAND_SEAT, SquareAssoc.LIFE_SUPPORT, 0))
+            } else if (ch == 'S') {
+                commandChairs.put(SquareAssoc.SECURITY, Pair(j, i))
+                boardContents.add(Square(SquareRole.COMMAND_SEAT, SquareAssoc.SECURITY, 0))
+            } else if (ch == '=') {
+                boardContents.add(Square(SquareRole.HEALING_BED, SquareAssoc.MEDICAL, 0))
             } else if (ch == 'X') {
                 spawns.add(idx)
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
@@ -162,16 +187,12 @@ fun simpleBoardConvert(vararg s : String) : GameState {
         var j = idx % xdim
         val square = boardContents[idx]
         val charClass = charClassFromAssoc(square.assoc)
-        val nameNumber = (names.size * rand()).toInt()
-        val name = names[nameNumber]
-        val rankNumber = (3 * rand()).toInt()
-        var rank = normalRanks[rankNumber]
-        if (square.assoc == SquareAssoc.BRIDGE) {
-            rank = officerRanks[rankNumber]
+        var fullName = rollName(square)
+        while (characters.contains(fullName)) {
+            fullName = rollName(square)
         }
-        val id = idx.toString()
-        console.log(name)
-        characters.put(id, Character(id, rank + " " + name, j, i, charClass, -1, CHAR_START_HP))
+        console.log(fullName)
+        characters.put(fullName, Character(fullName, fullName, j, i, charClass, -1, CHAR_START_HP))
     }
 
     val board = GameBoard(xdim, ydim, boardContents.toTypedArray(), doors)
@@ -181,14 +202,14 @@ fun simpleBoardConvert(vararg s : String) : GameState {
 var testBoard =
     simpleBoardConvert(
             "####################################",
-            "#   #  X # X     #     E   X       #",
-            "# X #    #    X  #     X           #",
-            "##-####-########-#   X        X    #",
+            "#####  X # X    S#     E   X       #",
+            "#####L   #    X  #     X           #",
+            "#######-########-#   X        X    #",
             "##               #                 #",
             "########-####### #############-#####",
-            "#   X       X  |                 ###",
-            "#     X        ##############-######",
-            "#       X      #    X   X      X   #",
-            "#  X           #                   #",
+            "#=  X       X  |                 ###",
+            "#=    X        ##############-######",
+            "#=      X      #    X   X      X   #",
+            "#  X   M       #           B       #",
             "####################################"
             )

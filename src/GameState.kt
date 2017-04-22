@@ -155,7 +155,8 @@ public class GameDisplay(logical: GameStateData) {
 
 public class GameState(logical : GameStateData) {
     val logical : GameStateData = logical;
-    var display : GameDisplay = computeDisplay(logical);
+    var display : GameDisplay = computeDisplay(logical)
+    var sel : Pair<Int,Int>? = null
 
     fun computeDisplay(logical : GameStateData) : GameDisplay {
         return GameDisplay(logical);

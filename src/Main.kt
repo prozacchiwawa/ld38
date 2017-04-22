@@ -43,6 +43,7 @@ var assets = Assets()
 interface IGameMode {
     abstract fun runMode(t : Double) : IGameMode
     abstract fun getState() : GameState
+    abstract fun click(x : Double, y : Double)
 }
 
 class YourTurnMode(var state : GameState) : IGameMode {
@@ -52,6 +53,18 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
     override fun getState() : GameState {
         return state
+    }
+
+    override fun click(x : Double, y : Double) {
+        val board = state.logical.board
+        val dim = getBoardSize(screenX, screenY, board)
+        val xTile = Math.floor((x - dim.boardWidth) / dim.tileSize)
+        val yTile = Math.floor((y - dim.boardHeight) / dim.tileSize)
+        if (xTile < 0 || yTile < 0 || xTile >= board.dimX || yTile >= board.dimY) {
+            state.sel = null
+        } else {
+            state.sel = Pair(xTile.toInt(), yTile.toInt())
+        }
     }
 }
 
@@ -66,6 +79,7 @@ fun doWithException(doit : () -> Unit) {
 }
 
 class GameAnimator(var mode : IGameMode) {
+    fun getMode() : IGameMode { return mode }
     fun runFrame() {
         doWithException {
             val t : Double = getCurTime();
@@ -100,6 +114,11 @@ fun rungame() {
 
         var running = testBoard
         val ga = GameAnimator(YourTurnMode(running))
+
+        kotlin.browser.window.addEventListener("mouseclick", { evt : dynamic ->
+            ga.getMode().click(evt.clientX, evt.clientY)
+        })
+
         ga.start()
     }
 }
