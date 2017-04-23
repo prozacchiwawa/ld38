@@ -53,8 +53,8 @@ interface IGameMode {
 // There's a simple state machine transitioned by click
 //
 // Nothing Selected ->
-//   Non character selected -> describe window
-//   Char selected -> Describe char window
+//   Non character moving -> describe window
+//   Char moving -> Describe char window
 //
 // describe char window ->
 //   Special effect button -> specialEffect(char)
@@ -70,7 +70,7 @@ interface IGameMode {
 //   hasTurn.remove(char)
 //   ephemeralAnimation(char.specialAnim)
 //   if hasTurn.count > 0 then
-//     Nothing selected
+//     Nothing moving
 //   else
 //     End turn
 //
@@ -84,11 +84,11 @@ interface IGameMode {
 //   hasTurn.remove(char)
 //   ephemeralAnimation(char.specialAnim)
 //   if hasTurn.count > 0 then
-//     Nothing selected
+//     Nothing moving
 //   else
 //     End turn
 //
-// describe window -> Nothing selected
+// describe window -> Nothing moving
 //
 
 class YourTurnIntroMode(var state : GameState) : IGameMode {
@@ -166,7 +166,9 @@ data class AvailableMove(val who : Character, val haveMoves : Int, val moves : M
 class YourTurnMode(var state : GameState) : IGameMode {
     val hasTurn : MutableSet<String> = getHasTurn(state.logical.characters)
     var elapsed = 0.0
-    var selected : AvailableMove? = null
+    var moving : AvailableMove? = null
+    var selected : Character? = null
+    var menu : Menu? = null
 
     fun getHasTurn(chars : Map<String, Character>) : MutableSet<String> {
         val res : MutableSet<String> = mutableSetOf()
@@ -205,30 +207,49 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
         val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
         console.log("mouse click ",xTile,yTile)
-        val csel = selected
-        if (xTile < 0 || yTile < 0 || xTile >= board.dimX || yTile >= board.dimY) {
-            state.sel = null
-        } else if (csel != null) {
+        val csel = moving
+        val m = menu
+        if (csel != null) {
             val idx = xTile + (board.dimX * yTile)
             val move = csel.moves.get(idx)
             if (move != null) {
                 val cdisp = state.display.characters.get(csel.who.id)
                 if (cdisp != null) {
                     state.display.characters.put(csel.who.id, cdisp.copy(dispx = xTile.toDouble(), dispy = yTile.toDouble()))
+                    moving = null
                 }
             } else if (xTile == csel.who.x && xTile == csel.who.y) {
-                // Preserve selected
+                // Preserve moving
             } else {
+                moving = null
                 selected = null
+                menu = null
+            }
+        } else if (m != null) {
+            val sel = m.getSelection(x, y)
+            console.log("Menu:", sel, selected)
+            val csel = selected
+            if (sel != null && csel != null) {
+                if (sel == 1) {
+                    menu = null
+                    var movesLeft = csel.availMoves()
+                    moving = AvailableMove(csel, movesLeft, getMoves(board, movesLeft, csel))
+                } else if (sel > 1){
+                    moving = null
+                    selected = null
+                    hasTurn.remove(csel.id)
+                }
             }
         } else {
-            selected = null
+            moving = null
+            menu = null
             for (chName in hasTurn) {
                 val dp = state.display.characters.get(chName)
                 var ch = state.logical.characters.get(chName)
                 if (dp != null && ch != null && Math.abs(dp.dispx - xTile) < 0.01 && Math.abs(dp.dispy - yTile) < 0.01) {
-                    var movesLeft = ch.availMoves()
-                    selected = AvailableMove(ch, movesLeft, getMoves(board, movesLeft, ch))
+                    val near = Rect(dim.boardLeft + (dp.dispx * dim.tileSize), dim.boardTop + (dp.dispy * dim.tileSize), dim.tileSize, dim.tileSize)
+                    selected = ch
+                    menu = Menu(arrayOf(ch.name, "Move", "Attack", "Special"), 20.0, 5.0, near)
                 }
             }
         }
@@ -246,10 +267,14 @@ class YourTurnMode(var state : GameState) : IGameMode {
                 placeSprite(assets, dim, ctx, sprite, ch.dispx, ch.dispy)
             }
         }
+        var m = menu
+        if (m != null) {
+            m.render(ctx)
+        }
     }
 
     override fun underlay(dim : BoardDim, ctx : CanvasRenderingContext2D) {
-        var sel = selected
+        var sel = moving
         if (sel != null) {
             for (kv in sel.moves) {
                 val y = kv.key / state.logical.board.dimX

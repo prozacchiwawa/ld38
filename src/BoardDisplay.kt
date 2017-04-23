@@ -7,6 +7,8 @@ package ldjam.prozacchiwawa
 import org.w3c.dom.CanvasImageSource
 import org.w3c.dom.CanvasRenderingContext2D
 
+val TILESIZE = 128.0
+
 data class BoardDim(val boardLeft : Double, val boardTop : Double, val boardWidth : Double, val boardHeight : Double, val tileSize : Double) {
 }
 
@@ -14,7 +16,7 @@ fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D,
     var imageSource : CanvasImageSource = assets.sprites.asDynamic()
     var spx = spriteId % 20
     var spy = spriteId / 20
-    ctx.drawImage(imageSource, spx * 50.0, spy * 50.0, 50.0, 50.0, dim.boardLeft + x * dim.tileSize + 1, dim.boardTop + y * dim.tileSize + 1, dim.tileSize - 2.0, dim.tileSize - 2.0)
+    ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, dim.boardLeft + x * dim.tileSize + 1, dim.boardTop + y * dim.tileSize + 1, dim.tileSize - 2.0, dim.tileSize - 2.0)
 }
 
 fun getBoardSize(screenx : Int, screeny : Int, board : GameBoard) : BoardDim {
