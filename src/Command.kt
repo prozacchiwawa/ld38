@@ -9,5 +9,4 @@ enum class CommandType {
 }
 
 data class Command(val type : CommandType, val location : Pair<Int, Int>) {
-
 }

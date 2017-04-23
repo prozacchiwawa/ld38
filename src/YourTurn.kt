@@ -70,54 +70,106 @@ data class ClickAnim(val x : Double, val y : Double, val start : Double, val at 
     }
 }
 
-fun getMoves(board : GameBoard, ch : Character) : Map<Int,Int> {
+fun getMoves(board : GameBoard, ch : Character) : Set<Ord> {
     val moves = ch.availMoves()
-    val visited : MutableMap<Int, Int> = mutableMapOf(Pair(ch.y * board.dimX + ch.x, moves))
-    val results : MutableMap<Int, Int> = mutableMapOf()
+    val visited : MutableMap<Ord, Int> = mutableMapOf(Pair(board.ordOfCoords(ch.x, ch.y), moves))
+    val results : MutableMap<Ord, Int> = mutableMapOf()
     while (visited.count() > 0) {
         val check = visited.asSequence().first()
         visited.remove(check.key)
         val checkM = results.get(check.key)
-        val passable = board.isPassable(check.key % board.dimX, check.key / board.dimX)
+        val coords = board.coordsOfOrd(check.key)
+        val passable = board.isPassable(coords.first, coords.second)
         if ((checkM == null || checkM < check.value) && passable) {
             results.put(check.key, check.value)
         }
         if (check.value == 0 || !passable) {
             continue
         }
-        val left = check.key - 1
-        val right = check.key + 1
-        val up = check.key - board.dimX
-        val down = check.key + board.dimX
+        val left = board.ordOfCoords(coords.first - 1, coords.second)
+        val right = board.ordOfCoords(coords.first + 1, coords.second)
+        val up = board.ordOfCoords(coords.first, coords.second - 1)
+        val down = board.ordOfCoords(coords.first, coords.second + 1)
         visited.put(left, check.value - 1)
         visited.put(right, check.value - 1)
         visited.put(up, check.value - 1)
         visited.put(down, check.value - 1)
     }
-    return results
+    val emptySet : Set<Ord> = emptySet()
+    return emptySet.plus(results.keys)
 }
 
 interface IGameSubmode {
     abstract fun finish() : Boolean
-    abstract fun update(t : Double)
+    abstract fun update(t : Double) : Pair<GameState,IGameSubmode>
     abstract fun overlay(ctx : CanvasRenderingContext2D)
     abstract fun underlay(dim : BoardDim, ctx : CanvasRenderingContext2D)
     abstract fun click(x : Double, y : Double) : Pair<GameState,IGameSubmode>
 }
 
-fun menuForGameState(dim : BoardDim, state : GameState, ch : Character, dp : CharacterDisplay) : Menu<CommandType> {
+fun getUsableMap(state : GameState, ch : Character) : Map<CommandType,Set<Ord>> {
+    val usable : MutableMap<CommandType,Set<Ord>> = mutableMapOf()
+    usable.put(CommandType.WAIT, setOf(state.logical.board.ordOfCoords(ch.x, ch.y)))
+    // Movement
+    usable.put(CommandType.MOVE, getMoves(state.logical.board, ch))
+    var cdisp = state.display.characters.get(ch.id)
+    if (cdisp != null) {
+        val attacks : MutableSet<Ord> = mutableSetOf()
+        // Attacks
+        for (ot in state.logical.characters) {
+            if (ot.value.team != ch.team && Math.abs(ot.value.x - cdisp.targetx) + Math.abs(ot.value.y - cdisp.targety) == 1.0) {
+                attacks.add(state.logical.board.ordOfCoords(ot.value.x, ot.value.y))
+            }
+        }
+        val opens : MutableSet<Ord> = mutableSetOf()
+        val closes : MutableSet<Ord> = mutableSetOf()
+        // Doors
+        for (d in state.logical.board.doors) {
+            if (Math.abs(d.value.x - cdisp.targetx) + Math.abs(d.value.y - cdisp.targety) == 1.0) {
+                if (d.value.hp < 1) {
+                    continue
+                } else if (d.value.locked) {
+                    attacks.add(state.logical.board.ordOfCoords(d.value.x, d.value.y))
+                } else if (d.value.open) {
+                    closes.add(state.logical.board.ordOfCoords(d.value.x, d.value.y))
+                } else {
+                    opens.add(state.logical.board.ordOfCoords(d.value.x, d.value.y))
+                }
+            }
+        }
+        usable.put(CommandType.ATTACK, attacks)
+        usable.put(CommandType.OPEN, opens)
+        usable.put(CommandType.CLOSE, closes)
+    }
+    return usable
+}
+
+fun menuForGameState(dim : BoardDim, state : GameState, ch : Character, dp : CharacterDisplay, usable : Map<CommandType,Set<Ord>>) : Menu<CommandType> {
     val near = Rect(dim.boardLeft + (dp.targetx * dim.tileSize), dim.boardTop + (dp.targety * dim.tileSize), dim.tileSize, dim.tileSize)
     val menuItems = arrayListOf(
             Pair(ch.name, CommandType.NOTHING)
     )
+    for (cmd in arrayOf(
+            Pair("Wait", CommandType.WAIT),
+            Pair("Move", CommandType.MOVE),
+            Pair("Attack", CommandType.ATTACK),
+            Pair("Open", CommandType.OPEN),
+            Pair("Close", CommandType.CLOSE),
+            Pair("Room", CommandType.SUPER),
+            Pair("Special", CommandType.SPECIAL))) {
+        if (usable.getOrElse(cmd.second, { setOf() }).count() > 0) {
+            menuItems.add(cmd)
+        }
+    }
     return Menu(menuItems, 20.0, 5.0, near)
 }
 
 data class PickingCharacterMode(val state : GameState, val hasTurn : Set<String>) : IGameSubmode {
     var elapsed = 0.0
     override fun finish() : Boolean { return hasTurn.count() == 0 }
-    override fun update(t : Double) {
+    override fun update(t : Double) : Pair<GameState, IGameSubmode> {
         elapsed += t
+        return Pair(state, this)
     }
 
     fun getAvailMoves(chars : Map<String, Character>) : MutableMap<String, Int> {
@@ -153,8 +205,9 @@ data class PickingCharacterMode(val state : GameState, val hasTurn : Set<String>
             val dp = state.display.characters.get(chName)
             val ch = state.logical.characters.get(chName)
             if (dp != null && ch != null && Math.abs(dp.targetx - xTile) < 0.01 && Math.abs(dp.targety - yTile) < 0.01) {
-                val menu = menuForGameState(dim, state, ch, dp)
-                return Pair(state, CharacterMenuMode(state, ch, menu, emptyMap(), hasTurn))
+                val usable = getUsableMap(state, ch)
+                val menu = menuForGameState(dim, state, ch, dp, usable)
+                return Pair(state, CharacterMenuMode(state, ch, menu, usable, hasTurn))
             }
         }
         return Pair(state, this)
@@ -163,7 +216,8 @@ data class PickingCharacterMode(val state : GameState, val hasTurn : Set<String>
 
 data class CharacterMenuMode(val state : GameState, val ch : Character, val menu : Menu<CommandType>, val usable : Map<CommandType,Set<Ord>>, val hasTurn : Set<String>) : IGameSubmode {
     override fun finish() : Boolean { return hasTurn.count() == 0 }
-    override fun update(t : Double) {
+    override fun update(t : Double) : Pair<GameState, IGameSubmode> {
+        return Pair(state, this)
     }
     override fun overlay(ctx : CanvasRenderingContext2D) {
         menu.render(ctx)
@@ -177,6 +231,14 @@ data class CharacterMenuMode(val state : GameState, val ch : Character, val menu
             if (selectableMoves != null && selectableMoves.count() > 0) {
                 if (clicked == CommandType.MOVE) {
                     return Pair(state, CharacterMovementMode(state, ch, menu, usable, hasTurn))
+                } else if (clicked == CommandType.WAIT) {
+                    var cdisp = state.display.characters.get(ch.id)
+                    if (cdisp != null) {
+                        val newState = state.executeCommand(ch, CommandType.WAIT, cdisp.targetx.toInt(), cdisp.targety.toInt())
+                        return Pair(newState, PickingCharacterMode(newState, hasTurn.minus(ch.id)))
+                    } else {
+                        return Pair(state,PickingCharacterMode(state, hasTurn))
+                    }
                 } else {
                     return Pair(state, PlacementSelectionMode(state, ch, clicked, usable, hasTurn))
                 }
@@ -187,17 +249,39 @@ data class CharacterMenuMode(val state : GameState, val ch : Character, val menu
 }
 
 data class CharacterMovementMode(val state : GameState, val ch : Character, val menu : Menu<CommandType>, val usable : Map<CommandType,Set<Ord>>, val hasTurn : Set<String>) : IGameSubmode {
+    var moved = false
     override fun finish(): Boolean {
         return hasTurn.count() == 0
     }
 
-    override fun update(t: Double) {
+    override fun update(t : Double) : Pair<GameState, IGameSubmode> {
+        val board = state.logical.board
+        val dim = getBoardSize(screenX, screenY, board)
+        val cdisp = state.display.characters.get(ch.id)
+        if (cdisp != null) {
+            if (moved && moveCharactersCloserToTargets(state, t)) {
+                val usable = getUsableMap(state, ch)
+                val menu = menuForGameState(dim, state, ch, cdisp, usable)
+                return Pair(state, CharacterMenuMode(state, ch, menu, usable, hasTurn))
+            } else {
+                return Pair(state, this)
+            }
+        } else {
+            return Pair(state, PickingCharacterMode(state, hasTurn))
+        }
     }
 
     override fun overlay(ctx: CanvasRenderingContext2D) {
     }
 
     override fun underlay(dim: BoardDim, ctx: CanvasRenderingContext2D) {
+        for (ord in usable.getOrElse(CommandType.MOVE, { setOf() })) {
+            val coords = state.logical.board.coordsOfOrd(ord)
+            ctx.fillStyle = "rgba(247, 245, 178, 0.3)"
+            ctx.fillRect(dim.boardLeft + (coords.first * dim.tileSize), dim.boardTop + (coords.second * dim.tileSize), dim.tileSize, dim.tileSize)
+            ctx.strokeStyle = "rgba(247, 245, 178, 0.6)"
+            ctx.strokeRect(dim.boardLeft + (coords.first * dim.tileSize), dim.boardTop + (coords.second * dim.tileSize), dim.tileSize , dim.tileSize)
+        }
     }
 
     override fun click(x: Double, y: Double): Pair<GameState, IGameSubmode> {
@@ -205,12 +289,12 @@ data class CharacterMovementMode(val state : GameState, val ch : Character, val 
         val dim = getBoardSize(screenX, screenY, board)
         val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
         val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
-        val cdisp = state.display.characters.entries.filter { kv -> Math.floor(kv.value.targetx) == xTile && Math.floor(kv.value.targety) == yTile }.first()
-        if (cdisp != null)
+        val cdisp = state.display.characters.get(ch.id)
+        if (cdisp != null && usable.getOrElse(CommandType.MOVE, { setOf() }).contains(state.logical.board.ordOfCoords(xTile, yTile)))
         {
-            state.display.characters.put(cdisp.key, cdisp.value.copy(targetx = xTile.toDouble(), targety = yTile.toDouble()))
-            val menu = menuForGameState(dim, state, ch, cdisp.value)
-            return Pair(state, CharacterMenuMode(state, ch, menu, emptyMap(), hasTurn))
+            moved = true
+            state.display.characters.put(ch.id, cdisp.copy(targetx = xTile.toDouble(), targety = yTile.toDouble()))
+            return Pair(state, this)
         }
         return Pair(state, CharacterMenuMode(state, ch, menu, usable, hasTurn))
     }
@@ -218,7 +302,8 @@ data class CharacterMovementMode(val state : GameState, val ch : Character, val 
 
 data class PlacementSelectionMode(val state : GameState, val ch : Character, val cmd : CommandType, val usable : Map<CommandType,Set<Ord>>, val hasTurn : Set<String>) : IGameSubmode {
     override fun finish() : Boolean { return hasTurn.count() == 0 }
-    override fun update(t : Double) {
+    override fun update(t : Double) : Pair<GameState, IGameSubmode> {
+        return Pair(state, this)
     }
     override fun underlay(dim : BoardDim, ctx : CanvasRenderingContext2D) {
         for (ord in usable.getOrElse(cmd, { setOf() })) {
@@ -231,6 +316,7 @@ data class PlacementSelectionMode(val state : GameState, val ch : Character, val
     }
     override fun overlay(ctx : CanvasRenderingContext2D) {
     }
+
     override fun click(x : Double, y : Double) : Pair<GameState,IGameSubmode> {
         val board = state.logical.board
         val dim = getBoardSize(screenX, screenY, board)
@@ -269,10 +355,11 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
     override fun runMode(t : Double) : IGameMode {
         elapsed += t
-        submode.update(t)
         updateAnims(t)
-        moveCharactersCloserToTargets(state, t)
-        if (getHasTurn(state.logical.characters).count() < 1) {
+        val res = submode.update(t)
+        state = res.first
+        submode = res.second
+        if (submode.finish()) {
             return YourTurnIntroMode(state)
         } else {
             return this

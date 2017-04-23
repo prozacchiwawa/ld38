@@ -4,10 +4,12 @@
 
 package ldjam.prozacchiwawa
 
-fun moveCharactersCloserToTargets(state : GameState, delta : Double) {
+fun moveCharactersCloserToTargets(state : GameState, delta : Double) : Boolean {
+    var moreRequred = false
     val kvlist = state.display.characters
     for (kv in kvlist) {
         if (kv.value.dispx != kv.value.targetx || kv.value.dispy != kv.value.targety) {
+            moreRequred = true
             val path = state.pathfind(kv.value.targetx, kv.value.targety, kv.value.dispx, kv.value.dispy)
             if (path != null) {
                 if (path.size > 1) {
@@ -37,4 +39,5 @@ fun moveCharactersCloserToTargets(state : GameState, delta : Double) {
             }
         }
     }
+    return !moreRequred
 }

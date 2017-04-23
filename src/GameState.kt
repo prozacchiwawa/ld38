@@ -247,6 +247,26 @@ public class GameState(logical : GameStateData) {
     }
 
     fun executeCommand(ch : Character, cmd : CommandType, x : Int, y : Int) : GameState {
+        val cdisp = display.characters.get(ch.id)
+        if (cdisp != null) {
+            val newChar = ch.copy(x = cdisp.targetx.toInt(), y = cdisp.targety.toInt())
+            val logical = logical.copy(characters = logical.characters.plus(Pair(ch.id, newChar)))
+            if (cmd == CommandType.OPEN) {
+                val ord = logical.board.ordOfCoords(x, y)
+                val door = logical.board.doors.get(ord)
+                if (door != null) {
+                    val newDoor = door.copy(open = true, locked = true)
+                    return GameState(logical.copy(board = logical.board.copy(doors = logical.board.doors.plus(Pair(ord, newDoor)))))
+                }
+            } else if (cmd == CommandType.CLOSE) {
+                val ord = logical.board.ordOfCoords(x, y)
+                val door = logical.board.doors.get(ord)
+                if (door != null) {
+                    val newDoor = door.copy(open = false)
+                    return GameState(logical.copy(board = logical.board.copy(doors = logical.board.doors.plus(Pair(ord, newDoor)))))
+                }
+            }
+        }
         return this
     }
 }
