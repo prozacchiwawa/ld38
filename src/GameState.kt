@@ -91,6 +91,39 @@ public data class GameBoard(
             }
         }
     }
+
+    fun getNeighbor(x : Int, y : Int) : Square? {
+        if (x < 0 || y < 0 || x >= dimX || y >= dimY) {
+            return null
+        } else {
+            var idx = (y * dimX) + x
+            return square[idx]
+        }
+    }
+
+    fun idxOfCoords(x : Int, y : Int) : Int { return (y * dimX) + x }
+
+    fun getNeighborsWithDoors(x : Int, y : Int) : Int {
+        var res : Int = 0
+        val idx = y * dimX + x
+        val leftNeighbor = getNeighbor(x - 1, y)
+        val rightNeighbor = getNeighbor(x + 1, y)
+        val upNeighbor = getNeighbor(x, y - 1)
+        val downNeighbor = getNeighbor(x, y + 1)
+        if ((leftNeighbor != null && leftNeighbor.role != SquareRole.NOROLE) || doors.containsKey(idx-1)) {
+            res = res.or(1)
+        }
+        if ((rightNeighbor != null && rightNeighbor.role != SquareRole.NOROLE) || doors.containsKey(idx+1)) {
+            res = res.or(4)
+        }
+        if ((upNeighbor != null && upNeighbor.role != SquareRole.NOROLE) || doors.containsKey(idx-dimX)) {
+            res = res.or(2)
+        }
+        if ((downNeighbor != null && downNeighbor.role != SquareRole.NOROLE) || doors.containsKey(idx+dimX)) {
+            res = res.or(8)
+        }
+        return res
+    }
 }
 
 public data class CharacterDisplay(

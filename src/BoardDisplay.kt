@@ -11,6 +11,9 @@ val TILESIZE = 128.0
 val FLOOR_SPRITE_CORNER = 26
 val FLOOR_SPRITE_EDGE = 27
 val FLOOR_SPRITE = 28
+val WALL_CORNER = 24
+val WALL_LONG = 25
+
 val TO_RADIANS = Math.PI/180
 
 data class BoardDim(val boardLeft : Double, val boardTop : Double, val boardWidth : Double, val boardHeight : Double, val tileSize : Double) {
@@ -56,6 +59,25 @@ val roomColors =
                 Pair(SquareAssoc.SECURITY, "rgba(112, 68, 70, 0.3)")
         )
 
+val wallSchemes = mapOf(
+        Pair(0, arrayOf()),
+        Pair(1, arrayOf()),
+        Pair(2, arrayOf()),
+        Pair(3, arrayOf(Pair(WALL_CORNER, 90.0))),
+        Pair(4, arrayOf()),
+        Pair(5, arrayOf(Pair(WALL_LONG, 0.0))),
+        Pair(6, arrayOf(Pair(WALL_CORNER, 180.0))),
+        Pair(7, arrayOf(Pair(WALL_CORNER, 180.0), Pair(WALL_LONG, 0.0))),
+        Pair(8, arrayOf()),
+        Pair(9, arrayOf(Pair(WALL_CORNER, 0.0))),
+        Pair(10, arrayOf(Pair(WALL_LONG, 90.0))),
+        Pair(11, arrayOf(Pair(WALL_CORNER, 90.0), Pair(WALL_LONG, 90.0))),
+        Pair(12, arrayOf(Pair(WALL_CORNER, -90.0))),
+        Pair(13, arrayOf(Pair(WALL_CORNER, -90.0), Pair(WALL_LONG, 0))),
+        Pair(14, arrayOf(Pair(WALL_CORNER, -90.0), Pair(WALL_LONG, 90.0))),
+        Pair(15, arrayOf(Pair(WALL_LONG, 0), Pair(WALL_LONG, 90.0)))
+)
+
 fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, state : GameState, assets : Assets, underlay : (BoardDim) -> Unit) {
     var board = state.logical.board
     var chars = state.logical.characters
@@ -87,8 +109,13 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
                 placeSprite(assets, dim, ctx, FLOOR_SPRITE, j.toDouble(), i.toDouble())
             }
             if (board.square[idx].role == SquareRole.WALL) {
-                //ctx.fillStyle = "#bcc4d1"
-                //ctx.fillRect(dim.boardLeft + (j * dim.tileSize) + 1, dim.boardTop + (i * dim.tileSize) + 1, dim.tileSize - 2.0, dim.tileSize - 2.0)
+                val row = idx / board.dimX
+                val col = idx % board.dimX
+                val neighbors = board.getNeighborsWithDoors(col, row)
+                val scheme = wallSchemes.get(neighbors)
+                for (w in scheme) {
+                    placeSpriteRotated(assets, dim, ctx, w.first, j.toDouble(), i.toDouble(), w.second)
+                }
             }
             val roomColor = roomColors.get(board.square[idx].assoc)
             if (roomColor != null) {
