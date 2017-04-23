@@ -33,6 +33,8 @@ public enum class DoorType {
     INTERIOR, AIRLOCK
 }
 
+public data class Ord(val idx : Int) { }
+
 public data class CharacterAnim(
         val dir : CharacterDirection,
         val type : CharacterAnimType
@@ -77,7 +79,7 @@ public data class GameBoard(
         val dimX : Int,
         val dimY : Int,
         val square : Array<Square>,
-        val doors : Map<Int, DoorState>
+        val doors : Map<Ord, DoorState>
         ) {
     fun isPassable(x : Int, y : Int) : Boolean {
         if (y < 0 || x < 0 || y >= dimY || x >= dimX) {
@@ -85,7 +87,7 @@ public data class GameBoard(
         } else {
             val idx = (y * dimX) + x
             val theSquare = square[idx]
-            val theDoor = doors.get(idx)
+            val theDoor = doors.get(Ord(idx))
             if (theDoor != null) {
                 return theDoor.open
             } else {
@@ -103,25 +105,25 @@ public data class GameBoard(
         }
     }
 
-    fun idxOfCoords(x : Int, y : Int) : Int { return (y * dimX) + x }
+    fun ordOfCoords(x : Int, y : Int) : Ord { return Ord((y * dimX) + x) }
+    fun coordsOfOrd(o : Ord) : Pair<Int,Int> { return Pair(o.idx % dimX, o.idx / dimX) }
 
     fun getNeighborsWithDoors(x : Int, y : Int) : Int {
         var res : Int = 0
-        val idx = y * dimX + x
         val leftNeighbor = getNeighbor(x - 1, y)
         val rightNeighbor = getNeighbor(x + 1, y)
         val upNeighbor = getNeighbor(x, y - 1)
         val downNeighbor = getNeighbor(x, y + 1)
-        if ((leftNeighbor != null && leftNeighbor.role != SquareRole.NOROLE) || doors.containsKey(idx-1)) {
+        if ((leftNeighbor != null && leftNeighbor.role != SquareRole.NOROLE) || doors.containsKey(ordOfCoords(x - 1, y))) {
             res = res.or(1)
         }
-        if ((rightNeighbor != null && rightNeighbor.role != SquareRole.NOROLE) || doors.containsKey(idx+1)) {
+        if ((rightNeighbor != null && rightNeighbor.role != SquareRole.NOROLE) || doors.containsKey(ordOfCoords(x + 1, y))) {
             res = res.or(4)
         }
-        if ((upNeighbor != null && upNeighbor.role != SquareRole.NOROLE) || doors.containsKey(idx-dimX)) {
+        if ((upNeighbor != null && upNeighbor.role != SquareRole.NOROLE) || doors.containsKey(ordOfCoords(x, y - 1))) {
             res = res.or(2)
         }
-        if ((downNeighbor != null && downNeighbor.role != SquareRole.NOROLE) || doors.containsKey(idx+dimX)) {
+        if ((downNeighbor != null && downNeighbor.role != SquareRole.NOROLE) || doors.containsKey(ordOfCoords(x, y + 1))) {
             res = res.or(8)
         }
         return res
@@ -188,7 +190,7 @@ public class GameDisplay(logical: GameStateData) {
         val boardDisp : Array<SquareDisplay> = arrayOf()
         val board = logical.board
         for (i in 0..(board.square.size - 1)) {
-            val door = board.doors.get(i)
+            val door = board.doors.get(Ord(i))
             if (door != null) {
                 boardDisp[i] = SquareDisplay(SquareRole.NOROLE, SquareAssoc.HALLWAY, DoorDisplayState(door.vertical, door.type, false, false, 0.0, 0.0))
             }
@@ -244,23 +246,7 @@ public class GameState(logical : GameStateData) {
         return null
     }
 
-    fun getNearbyDoors(x : Int, y : Int) : Map<Int, DoorState> {
-        val res = logical.board.doors.filter { kv -> Math.abs((kv.value.x - x).toDouble()) == 1.0 || Math.abs((kv.value.y - y).toDouble()) == 1.0 }
-        val map : Map<Int, DoorState> = mapOf()
-        return map.plus(res)
-    }
-
-    fun directionName(dir : CharacterDirection) : String {
-        if (dir == CharacterDirection.EAST) { return "east" }
-        else if (dir == CharacterDirection.NORTH) { return "north" }
-        else if (dir == CharacterDirection.WEST) { return "west" }
-        else { return "south" }
-    }
-
-    fun directionByDiff(ax : Int, ay : Int, bx : Int, by : Int) : CharacterDirection {
-        if (ax < bx) { return CharacterDirection.EAST }
-        else if (ax > bx) { return CharacterDirection.WEST }
-        else if (ay < by) { return CharacterDirection.SOUTH }
-        else { return CharacterDirection.NORTH }
+    fun executeCommand(ch : Character, cmd : CommandType, x : Int, y : Int) : GameState {
+        return this
     }
 }

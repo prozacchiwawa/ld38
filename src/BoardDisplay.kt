@@ -91,8 +91,8 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
     ctx.fillRect(dim.boardLeft, dim.boardTop, dim.boardWidth, dim.boardHeight)
     for (i in 0..(board.dimY - 1)) {
         for (j in 0..(board.dimX - 1)) {
-            val idx = (i * board.dimX) + j
-            val door = board.doors.get(idx)
+            val ord = board.ordOfCoords(j, i)
+            val door = board.doors.get(ord)
             if (i == 0 && j == 0) {
                 placeSpriteRotated(assets, dim, ctx, FLOOR_SPRITE_CORNER, 0.0, 0.0, -90.0)
             } else if (i == board.dimY - 1 && j == 0) {
@@ -112,24 +112,22 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
             } else if (i > 0 && j > 0 && i < board.dimY - 1 && j < board.dimX - 1) {
                 placeSprite(assets, dim, ctx, FLOOR_SPRITE, j.toDouble(), i.toDouble())
             }
-            if (board.square[idx].role == SquareRole.WALL) {
-                val row = idx / board.dimX
-                val col = idx % board.dimX
-                val neighbors = board.getNeighborsWithDoors(col, row)
+            if (board.square[ord.idx].role == SquareRole.WALL) {
+                val neighbors = board.getNeighborsWithDoors(j, i)
                 val scheme = wallSchemes.get(neighbors)
                 for (w in scheme) {
                     placeSpriteRotated(assets, dim, ctx, w.first, j.toDouble(), i.toDouble(), w.second)
                 }
             }
-            val roomColor = roomColors.get(board.square[idx].assoc)
+            val roomColor = roomColors.get(board.square[ord.idx].assoc)
             if (roomColor != null) {
                 ctx.fillStyle = roomColor
                 ctx.fillRect(dim.boardLeft + (j * dim.tileSize) + 1, dim.boardTop + (i * dim.tileSize) + 1, dim.tileSize - 2.0, dim.tileSize - 2.0)
             }
             // Render objects
-            if (board.square[idx].role == SquareRole.HEALING_BED) {
+            if (board.square[ord.idx].role == SquareRole.HEALING_BED) {
                 placeSprite(assets, dim, ctx, BED_SPRITE, j.toDouble(), i.toDouble())
-            } else if (board.square[idx].role == SquareRole.COMMAND_SEAT) {
+            } else if (board.square[ord.idx].role == SquareRole.COMMAND_SEAT) {
                 placeSprite(assets, dim, ctx, COMMAND_SPRITE, j.toDouble(), i.toDouble())
             } else if (door != null) {
                 var doorSprite = DOOR_CLOSED_SPRITE

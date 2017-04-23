@@ -108,8 +108,8 @@ fun simpleBoardConvert(vararg s : String) : GameState {
     }
     val boardContents = ArrayList<Square>()
     val commandChairs : MutableMap<SquareAssoc, Pair<Int, Int>> = mutableMapOf()
-    val doors : MutableMap<Int, DoorState> = mutableMapOf()
-    val spawns : MutableSet<Int> = mutableSetOf()
+    val doors : MutableMap<Ord, DoorState> = mutableMapOf()
+    val spawns : MutableSet<Ord> = mutableSetOf()
 
     for (i in 0..(ydim - 1)) {
         for (j in 0..(xdim - 1)) {
@@ -123,10 +123,10 @@ fun simpleBoardConvert(vararg s : String) : GameState {
             if (ch == '#') {
                 boardContents.add(Square(SquareRole.WALL, SquareAssoc.NOASSOC, 0))
             } else if (ch == '|') {
-                doors.put(idx, DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, true, false, false, false))
+                doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, true, false, false, false))
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else if (ch == '-') {
-                doors.put(idx, DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, false, false, false, false))
+                doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, false, false, false, false))
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else if (ch == 'E') {
                 commandChairs.put(SquareAssoc.ENGINEERING, Pair(j, i))
@@ -146,7 +146,7 @@ fun simpleBoardConvert(vararg s : String) : GameState {
             } else if (ch == '=') {
                 boardContents.add(Square(SquareRole.HEALING_BED, SquareAssoc.MEDICAL, 0))
             } else if (ch == 'X') {
-                spawns.add(idx)
+                spawns.add(Ord(idx))
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else {
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
@@ -170,7 +170,7 @@ fun simpleBoardConvert(vararg s : String) : GameState {
             nextPoint.remove(pt)
             var idx = (pt.second * xdim) + pt.first
             val sq = getSquare(xdim, boardContents, pt.first, pt.second)
-            val door = doors.get(idx)
+            val door = doors.get(Ord(idx))
             if (door == null && sq.role != SquareRole.WALL) {
                 boardContents[idx] = boardContents[idx].copy(assoc = coord.key)
                 gonext(Pair(pt.first - 1, pt.second))
@@ -183,10 +183,10 @@ fun simpleBoardConvert(vararg s : String) : GameState {
 
     val characters : MutableMap<String,Character> = mutableMapOf()
     val chosenNames = ArrayList<String>()
-    for (idx in spawns) {
-        var i = idx / xdim
-        var j = idx % xdim
-        val square = boardContents[idx]
+    for (ord in spawns) {
+        var i = ord.idx / xdim
+        var j = ord.idx % xdim
+        val square = boardContents[ord.idx]
         val charClass = charClassFromAssoc(square.assoc)
         var fullName = rollName(square)
         while (characters.contains(fullName)) {
