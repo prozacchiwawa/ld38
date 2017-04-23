@@ -8,6 +8,10 @@ import org.w3c.dom.CanvasImageSource
 import org.w3c.dom.CanvasRenderingContext2D
 
 val TILESIZE = 128.0
+val FLOOR_SPRITE_CORNER = 26
+val FLOOR_SPRITE_EDGE = 27
+val FLOOR_SPRITE = 28
+val TO_RADIANS = Math.PI/180
 
 data class BoardDim(val boardLeft : Double, val boardTop : Double, val boardWidth : Double, val boardHeight : Double, val tileSize : Double) {
 }
@@ -16,7 +20,18 @@ fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D,
     var imageSource : CanvasImageSource = assets.sprites.asDynamic()
     var spx = spriteId % 20
     var spy = spriteId / 20
-    ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, dim.boardLeft + x * dim.tileSize + 1, dim.boardTop + y * dim.tileSize + 1, dim.tileSize - 2.0, dim.tileSize - 2.0)
+    ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, dim.boardLeft + x * dim.tileSize, dim.boardTop + y * dim.tileSize, dim.tileSize, dim.tileSize)
+}
+
+fun placeSpriteRotated(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double, angle : Double) {
+    var imageSource : CanvasImageSource = assets.sprites.asDynamic()
+    var spx = spriteId % 20
+    var spy = spriteId / 20
+    ctx.save()
+    ctx.translate(dim.boardLeft + x * dim.tileSize + dim.tileSize / 2.0, dim.boardTop + y * dim.tileSize + dim.tileSize / 2.0)
+    ctx.rotate(angle * TO_RADIANS)
+    ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, -(dim.tileSize / 2.0), -(dim.tileSize / 2.0), dim.tileSize, dim.tileSize)
+    ctx.restore()
 }
 
 fun getBoardSize(screenx : Int, screeny : Int, board : GameBoard) : BoardDim {
@@ -24,11 +39,11 @@ fun getBoardSize(screenx : Int, screeny : Int, board : GameBoard) : BoardDim {
     val width80Pct = screenx.toDouble() * 0.8
     val tileWidthMax = width80Pct / board.dimX
     val tileHeightMax = height80Pct / board.dimY
-    val tileSize = Math.min(tileWidthMax, tileHeightMax)
-    val boardHeight = board.dimY * tileSize
-    val boardWidth = board.dimX * tileSize
-    val boardTop = (screeny - boardHeight) / 2
-    val boardLeft = (screenx - boardWidth) / 2
+    val tileSize : Double = Math.min(tileWidthMax, tileHeightMax)
+    val boardHeight = board.dimY.toDouble() * tileSize
+    val boardWidth = board.dimX.toDouble() * tileSize
+    val boardTop = (screeny.toDouble() - boardHeight) / 2.0
+    val boardLeft = (screenx.toDouble() - boardWidth) / 2.0
     return BoardDim(boardLeft, boardTop, boardWidth, boardHeight, tileSize)
 }
 
@@ -52,12 +67,28 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
         for (j in 0..(board.dimX - 1)) {
             val idx = (i * board.dimX) + j
             val door = board.doors.get(idx)
+            if (i == 0 && j == 0) {
+                placeSpriteRotated(assets, dim, ctx, FLOOR_SPRITE_CORNER, 0.0, 0.0, -90.0)
+            } else if (i == board.dimY - 1 && j == 0) {
+                placeSpriteRotated(assets, dim, ctx, FLOOR_SPRITE_CORNER, j.toDouble(), i.toDouble(), 180.0)
+            } else if (i == 0 && j == board.dimX - 1) {
+                placeSprite(assets, dim, ctx, FLOOR_SPRITE_CORNER, j.toDouble(), 0.0)
+            } else if (i == board.dimY - 1 && j == board.dimX - 1) {
+                placeSpriteRotated(assets, dim, ctx, FLOOR_SPRITE_CORNER, j.toDouble(), i.toDouble(), 90.0)
+            } else if (i == 0) {
+                placeSprite(assets, dim, ctx, FLOOR_SPRITE_EDGE, j.toDouble(), 0.0)
+            } else if (j == 0) {
+                placeSpriteRotated(assets, dim, ctx, FLOOR_SPRITE_EDGE, 0.0, i.toDouble(), -90.0)
+            } else if (i == board.dimY - 1) {
+                placeSpriteRotated(assets, dim, ctx, FLOOR_SPRITE_EDGE, j.toDouble(), i.toDouble(), 180.0)
+            } else if (j == board.dimX - 1) {
+                placeSpriteRotated(assets, dim, ctx, FLOOR_SPRITE_EDGE, j.toDouble(), i.toDouble(), 90.0)
+            } else if (i > 0 && j > 0 && i < board.dimY - 1 && j < board.dimX - 1) {
+                placeSprite(assets, dim, ctx, FLOOR_SPRITE, j.toDouble(), i.toDouble())
+            }
             if (board.square[idx].role == SquareRole.WALL) {
-                ctx.fillStyle = "#2a2b2d"
-                ctx.fillRect(dim.boardLeft + (j * dim.tileSize) + 1, dim.boardTop + (i * dim.tileSize) + 1, dim.tileSize - 2.0, dim.tileSize - 2.0)
-            } else {
-                ctx.fillStyle = "#bcc4d1"
-                ctx.fillRect(dim.boardLeft + (j * dim.tileSize) + 1, dim.boardTop + (i * dim.tileSize) + 1, dim.tileSize - 2.0, dim.tileSize - 2.0)
+                //ctx.fillStyle = "#bcc4d1"
+                //ctx.fillRect(dim.boardLeft + (j * dim.tileSize) + 1, dim.boardTop + (i * dim.tileSize) + 1, dim.tileSize - 2.0, dim.tileSize - 2.0)
             }
             val roomColor = roomColors.get(board.square[idx].assoc)
             if (roomColor != null) {
