@@ -5,16 +5,17 @@
 package ldjam.prozacchiwawa
 
 import org.w3c.dom.CanvasRenderingContext2D
+import java.util.*
 
 val textSpacingVert = 5.0
 val menuBorderSize = 5.0
 
 data class Rect(val left : Double, val top : Double, val width : Double, val height : Double) { }
 
-data class Menu(val selections : Array<String>, val tall : Double, val sep : Double, val near : Rect) {
+data class Menu<T>(val selections : ArrayList<Pair<String,T>>, val tall : Double, val sep : Double, val near : Rect) {
     var placed : Rect? = null
 
-    fun getSelection(x : Double, y : Double) : Int? {
+    fun getSelection(x : Double, y : Double) : T? {
         val p = placed
         console.log("placed",p)
         if (p != null) {
@@ -32,7 +33,7 @@ data class Menu(val selections : Array<String>, val tall : Double, val sep : Dou
             if (where > tall) {
                 return null
             }
-            return step
+            return selections[step].second
         } else {
             return null
         }
@@ -43,7 +44,7 @@ data class Menu(val selections : Array<String>, val tall : Double, val sep : Dou
         val height = selections.size * tall + ((selections.size - 1) * textSpacingVert)
         ctx.font = "${tall}px serif"
         for (s in selections) {
-            val metrics = ctx.measureText(s)
+            val metrics = ctx.measureText(s.first)
             width = Math.max(width, metrics.width)
         }
         var left = near.left - sep - 2.0 * menuBorderSize
@@ -67,7 +68,7 @@ data class Menu(val selections : Array<String>, val tall : Double, val sep : Dou
         var atY = pl.top + menuBorderSize
         for (s in selections) {
             ctx.fillStyle = "white"
-            ctx.fillText(s, pl.left + menuBorderSize, atY)
+            ctx.fillText(s.first, pl.left + menuBorderSize, atY)
             atY += tall + textSpacingVert
         }
     }

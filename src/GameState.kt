@@ -243,4 +243,24 @@ public class GameState(logical : GameStateData) {
         }
         return null
     }
+
+    fun getNearbyDoors(x : Int, y : Int) : Map<Int, DoorState> {
+        val res = logical.board.doors.filter { kv -> Math.abs((kv.value.x - x).toDouble()) <= 1 && Math.abs((kv.value.y - y).toDouble()) <= 1 }
+        val map : Map<Int, DoorState> = mapOf()
+        return map.plus(res)
+    }
+
+    fun directionName(dir : CharacterDirection) : String {
+        if (dir == CharacterDirection.EAST) { return "east" }
+        else if (dir == CharacterDirection.NORTH) { return "north" }
+        else if (dir == CharacterDirection.WEST) { return "west" }
+        else { return "south" }
+    }
+
+    fun directionByDiff(ax : Int, ay : Int, bx : Int, by : Int) : CharacterDirection {
+        if (ax < bx) { return CharacterDirection.EAST }
+        else if (ax > bx) { return CharacterDirection.WEST }
+        else if (ay < by) { return CharacterDirection.SOUTH }
+        else { return CharacterDirection.NORTH }
+    }
 }

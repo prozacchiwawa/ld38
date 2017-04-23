@@ -6,6 +6,7 @@ package ldjam.prozacchiwawa
 
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
+import java.util.*
 
 val TILE_WALK_TIME = 0.3
 
@@ -170,7 +171,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
     var elapsed = 0.0
     var moving : AvailableMove? = null
     var selected : Character? = null
-    var menu : Menu? = null
+    var menu : Menu<Pair<MenuCommandDirection, MenuCommandType>>? = null
 
     fun getHasTurn(chars : Map<String, Character>) : MutableSet<String> {
         val res : MutableSet<String> = mutableSetOf()
@@ -239,6 +240,26 @@ class YourTurnMode(var state : GameState) : IGameMode {
         }
     }
 
+    fun canAttack(ch : Character) : Boolean {
+        return true
+    }
+
+    enum class MenuCommandDirection {
+        NONE, NORTH, SOUTH, EAST, WEST
+    }
+
+    enum class MenuCommandType {
+        NOTHING, WAIT, MOVE, OPEN, CLOSE, ATTACK, SPECIAL, SUPER
+    }
+
+    fun menuCommandDirection(dir : CharacterDirection) : MenuCommandDirection {
+        if (dir == CharacterDirection.EAST) { return MenuCommandDirection.EAST }
+        else if (dir == CharacterDirection.WEST) { return MenuCommandDirection.WEST }
+        else if (dir == CharacterDirection.NORTH) { return MenuCommandDirection.NORTH }
+        else if (dir == CharacterDirection.SOUTH) { return MenuCommandDirection.SOUTH }
+        else { return MenuCommandDirection.NONE }
+    }
+
     override fun click(x : Double, y : Double) {
         val board = state.logical.board
         val dim = getBoardSize(screenX, screenY, board)
@@ -268,16 +289,20 @@ class YourTurnMode(var state : GameState) : IGameMode {
             val csel = selected
             if (sel != null && csel != null) {
                 val cdisp = state.display.characters.get(csel.id)
-                if (sel == 1) {
+                if (sel.second == MenuCommandType.MOVE) {
                     menu = null
                     var movesLeft = csel.availMoves()
                     moving = AvailableMove(csel, movesLeft, getMoves(board, movesLeft, csel))
-                } else if (sel > 1 && cdisp != null){
+                } else if (cdisp != null) {
                     moving = null
                     selected = null
                     hasTurn.remove(csel.id)
                     val newCharacters = state.logical.characters.plus(Pair(csel.id, csel.copy(x = cdisp.targetx.toInt(), y = cdisp.targety.toInt())))
                     state = GameState(logical = state.logical.copy(characters = newCharacters))
+                } else {
+                    menu = null
+                    moving = null
+                    selected = null
                 }
             }
         } else {
@@ -285,11 +310,27 @@ class YourTurnMode(var state : GameState) : IGameMode {
             menu = null
             for (chName in hasTurn) {
                 val dp = state.display.characters.get(chName)
-                var ch = state.logical.characters.get(chName)
+                val ch = state.logical.characters.get(chName)
                 if (dp != null && ch != null && Math.abs(dp.dispx - xTile) < 0.01 && Math.abs(dp.dispy - yTile) < 0.01) {
                     val near = Rect(dim.boardLeft + (dp.dispx * dim.tileSize), dim.boardTop + (dp.dispy * dim.tileSize), dim.tileSize, dim.tileSize)
                     selected = ch
-                    menu = Menu(arrayOf(ch.name, "Move", "Attack", "Special"), 20.0, 5.0, near)
+                    val menuItems = arrayListOf(
+                            Pair(ch.name, Pair(MenuCommandDirection.NONE, MenuCommandType.NOTHING)),
+                            Pair("Wait", Pair(MenuCommandDirection.NONE, MenuCommandType.WAIT)),
+                            Pair("Move", Pair(MenuCommandDirection.NONE, MenuCommandType.MOVE))
+                    )
+                    val canAttack = canAttack(ch)
+                    for (door in state.getNearbyDoors(ch.x, ch.y)) {
+                        var dir = state.directionByDiff(ch.x,ch.y,door.value.x,door.value.y)
+                        if (door.value.locked) {
+                            menuItems.add(Pair("Attack ${state.directionName(dir)}", Pair(menuCommandDirection(dir), MenuCommandType.ATTACK)))
+                        } else if (door.value.open) {
+                            menuItems.add(Pair("Close ${state.directionName(dir)} door", Pair(menuCommandDirection(dir), MenuCommandType.CLOSE)))
+                        } else {
+                            menuItems.add(Pair("Open ${state.directionName(dir)} door", Pair(menuCommandDirection(dir), MenuCommandType.OPEN)))
+                        }
+                    }
+                    menu = Menu(menuItems, 20.0, 5.0, near)
                 }
             }
         }
