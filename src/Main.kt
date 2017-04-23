@@ -267,14 +267,17 @@ class YourTurnMode(var state : GameState) : IGameMode {
             val sel = m.getSelection(x, y)
             val csel = selected
             if (sel != null && csel != null) {
+                val cdisp = state.display.characters.get(csel.id)
                 if (sel == 1) {
                     menu = null
                     var movesLeft = csel.availMoves()
                     moving = AvailableMove(csel, movesLeft, getMoves(board, movesLeft, csel))
-                } else if (sel > 1){
+                } else if (sel > 1 && cdisp != null){
                     moving = null
                     selected = null
                     hasTurn.remove(csel.id)
+                    val newCharacters = state.logical.characters.plus(Pair(csel.id, csel.copy(x = cdisp.targetx.toInt(), y = cdisp.targety.toInt())))
+                    state = GameState(logical = state.logical.copy(characters = newCharacters))
                 }
             }
         } else {
