@@ -8,6 +8,7 @@ import org.w3c.dom.CanvasImageSource
 import org.w3c.dom.CanvasRenderingContext2D
 
 val TILESIZE = 128.0
+val CHICKEN_SPRITE = 0
 val BED_SPRITE = 1
 val COMMAND_SPRITE = 2
 val DOOR_CLOSED_SPRITE = 20
@@ -20,8 +21,38 @@ val WALL_LONG = 25
 
 val TO_RADIANS = Math.PI/180
 
+data class AnimationDesc(val start : Int, val end : Int, val time : Double) { }
+
 data class BoardDim(val boardLeft : Double, val boardTop : Double, val boardWidth : Double, val boardHeight : Double, val tileSize : Double) {
 }
+
+val charAnimations =
+        mapOf(
+                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE), AnimationDesc(40, 42, 1.0)),
+                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.IDLE), AnimationDesc(50, 52, 1.0)),
+                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.IDLE), AnimationDesc(60, 62, 1.0)),
+                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.IDLE), AnimationDesc(70, 72, 1.0)),
+                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.WALK), AnimationDesc(40, 50, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.WALK), AnimationDesc(50, 60, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.WALK), AnimationDesc(60, 70, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.WALK), AnimationDesc(70, 80, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.CRAWL), AnimationDesc(40, 50, 0.7)),
+                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.CRAWL), AnimationDesc(50, 60, 0.7)),
+                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.CRAWL), AnimationDesc(60, 70, 0.7)),
+                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.CRAWL), AnimationDesc(70, 80, 0.7)),
+                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE), AnimationDesc(40, 42, 2.0)),
+                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.IDLE), AnimationDesc(50, 52, 2.0)),
+                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.IDLE), AnimationDesc(60, 62, 2.0)),
+                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.IDLE), AnimationDesc(70, 72, 2.0)),
+                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.FIGHT), AnimationDesc(80, 90, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.FIGHT), AnimationDesc(90, 100, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.FIGHT), AnimationDesc(100, 110, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.FIGHT), AnimationDesc(110,120, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.FIGHT), AnimationDesc(81, 83, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.FIGHT), AnimationDesc(91, 93, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.FIGHT), AnimationDesc(101, 103, 0.3)),
+                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.FIGHT), AnimationDesc(111, 113, 0.3))
+        )
 
 fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double) {
     var imageSource : CanvasImageSource = assets.sprites.asDynamic()
@@ -148,7 +179,16 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
 
     // Render people
     for (disp in state.display.characters) {
-        placeSprite(assets, dim, ctx, 0, disp.value.dispx, disp.value.dispy)
+        val elapsed = lastTime - disp.value.animstart
+        val animStart = charAnimations.get(disp.value.animation)
+        if (animStart == null) {
+            placeSprite(assets, dim, ctx, CHICKEN_SPRITE, disp.value.dispx, disp.value.dispy)
+        } else {
+            val whichCycle = Math.floor(elapsed / animStart.time)
+            val frameFrac = (elapsed / animStart.time) - whichCycle
+            val whichFrame = Math.floor(frameFrac * (animStart.end - animStart.start))
+            placeSprite(assets, dim, ctx, animStart.start + whichFrame, disp.value.dispx, disp.value.dispy)
+        }
     }
     // Selection
     val sel = state.sel
