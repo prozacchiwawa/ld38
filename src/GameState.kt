@@ -4,6 +4,8 @@
 
 package ldjam.prozacchiwawa
 
+import java.util.*
+
 val DOOR_START_HP = 50
 val CHAR_START_HP = 30
 
@@ -202,5 +204,40 @@ public class GameState(logical : GameStateData) {
 
     fun computeDisplay(logical : GameStateData) : GameDisplay {
         return GameDisplay(logical);
+    }
+
+    data class PathComponent(val prev : PathComponent?, val me : Pair<Int, Int>) {}
+
+    fun addIfPassable(targetX : Int, targetY : Int, first : PathComponent, visited : ArrayList<PathComponent>) {
+        if (logical.board.isPassable(targetX, targetY)) {
+            visited.add(PathComponent(first, Pair(targetX, targetY)))
+        }
+    }
+
+    fun pathfind(fromX : Double, fromY : Double, toX : Double, toY : Double) : ArrayList<Pair<Int,Int>>? {
+        val atX : Int = Math.round(fromX)
+        val atY : Int = Math.round(fromY)
+        val wantX : Int = Math.round(toX)
+        val wantY : Int = Math.round(toY)
+        val wantIdx = wantY * logical.board.dimX + wantX
+        val visited : ArrayList<PathComponent> = arrayListOf()
+        visited.add(PathComponent(null, Pair(atX, atY)))
+        while (visited.count() > 0) {
+            val first = visited[0]
+            visited.removeAt(0)
+            if (first.me.first == wantX && first.me.second == wantY) {
+                val al : ArrayList<Pair<Int,Int>> = arrayListOf()
+                var f = first
+                while (f != null) {
+                    al.add(0, f.me)
+                }
+                return al
+            }
+            addIfPassable(first.me.first - 1, first.me.second, first, visited)
+            addIfPassable(first.me.first + 1, first.me.second, first, visited)
+            addIfPassable(first.me.first, first.me.second - 1, first, visited)
+            addIfPassable(first.me.first, first.me.second + 1, first, visited)
+        }
+        return null
     }
 }

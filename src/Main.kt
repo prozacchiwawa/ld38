@@ -7,6 +7,8 @@ package ldjam.prozacchiwawa
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 
+val TILE_WALK_TIME = 0.3
+
 var lastTime = getCurTime()
 
 fun doError(container : org.w3c.dom.Element, content : org.w3c.dom.Element, t : String) {
@@ -190,6 +192,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
     override fun runMode(t : Double) : IGameMode {
         elapsed += t
+        moveCharactersCloserToTargets(t)
         if (hasTurn.count() < 1) {
             return YourTurnIntroMode(state)
         } else {
@@ -199,6 +202,41 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
     override fun getState() : GameState {
         return state
+    }
+
+    fun moveCharactersCloserToTargets(delta : Double) {
+        val kvlist = state.display.characters
+        for (kv in kvlist) {
+            if (kv.value.dispx != kv.value.targetx || kv.value.dispy != kv.value.targety) {
+                val path = state.pathfind(kv.value.targetx, kv.value.targety, kv.value.dispx, kv.value.dispy)
+                if (path != null) {
+                    if (path.size > 1) {
+                        var goTo = path[1]
+                        val prevAnim = kv.value.animation
+                        var newX = kv.value.dispx
+                        var newY = kv.value.dispy
+                        var newAnim = CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.WALK)
+                        if (goTo.first < kv.value.dispx) {
+                            newX = Math.max(kv.value.targetx, newX - delta * (1.0 / TILE_WALK_TIME))
+                            newAnim = CharacterAnim(CharacterDirection.WEST, CharacterAnimType.WALK)
+                        } else if (goTo.first > kv.value.dispx) {
+                            newX = Math.min(kv.value.targetx, newX + delta * (1.0 / TILE_WALK_TIME))
+                            newAnim = CharacterAnim(CharacterDirection.EAST, CharacterAnimType.WALK)
+                        } else if (goTo.second < kv.value.dispy) {
+                            newY = Math.max(kv.value.targety, newY - delta * (1.0 / TILE_WALK_TIME))
+                            newAnim = CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.WALK)
+                        } else {
+                            newY = Math.min(kv.value.targety, newY + delta * (1.0 / TILE_WALK_TIME))
+                        }
+                        var animStart = kv.value.animstart
+                        if (prevAnim != newAnim) {
+                            animStart = lastTime
+                        }
+                        state.display.characters.put(kv.key, kv.value.copy(animation = newAnim, animstart = animStart, dispx = newX, dispy = newY))
+                    }
+                }
+            }
+        }
     }
 
     override fun click(x : Double, y : Double) {
@@ -215,7 +253,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
             if (move != null) {
                 val cdisp = state.display.characters.get(csel.who.id)
                 if (cdisp != null) {
-                    state.display.characters.put(csel.who.id, cdisp.copy(dispx = xTile.toDouble(), dispy = yTile.toDouble()))
+                    state.display.characters.put(csel.who.id, cdisp.copy(targetx = xTile.toDouble(), targety = yTile.toDouble()))
                     moving = null
                 }
             } else if (xTile == csel.who.x && xTile == csel.who.y) {
@@ -227,7 +265,6 @@ class YourTurnMode(var state : GameState) : IGameMode {
             }
         } else if (m != null) {
             val sel = m.getSelection(x, y)
-            console.log("Menu:", sel, selected)
             val csel = selected
             if (sel != null && csel != null) {
                 if (sel == 1) {

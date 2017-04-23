@@ -16,12 +16,14 @@ data class Menu(val selections : Array<String>, val tall : Double, val sep : Dou
 
     fun getSelection(x : Double, y : Double) : Int? {
         val p = placed
-        console.log(p)
+        console.log("placed",p)
         if (p != null) {
             if (x < p.left + menuBorderSize || x >= p.left + p.width + menuBorderSize) {
+                console.log("off edge")
                 return null
             }
-            val step = Math.floor(y - menuBorderSize - p.top / (tall + textSpacingVert))
+            val step = Math.floor((y - menuBorderSize - p.top) / (tall + textSpacingVert))
+            console.log("step",step)
             if (step < 0 || step >= selections.size) {
                 return null
             }
