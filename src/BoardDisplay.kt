@@ -8,6 +8,10 @@ import org.w3c.dom.CanvasImageSource
 import org.w3c.dom.CanvasRenderingContext2D
 
 val TILESIZE = 128.0
+val BED_SPRITE = 1
+val COMMAND_SPRITE = 2
+val DOOR_CLOSED_SPRITE = 20
+val DOOR_OPEN_SPRITE = 23
 val FLOOR_SPRITE_CORNER = 26
 val FLOOR_SPRITE_EDGE = 27
 val FLOOR_SPRITE = 28
@@ -124,19 +128,19 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
             }
             // Render objects
             if (board.square[idx].role == SquareRole.HEALING_BED) {
-                placeSprite(assets, dim, ctx, 1, j.toDouble(), i.toDouble())
+                placeSprite(assets, dim, ctx, BED_SPRITE, j.toDouble(), i.toDouble())
             } else if (board.square[idx].role == SquareRole.COMMAND_SEAT) {
-                placeSprite(assets, dim, ctx, 2, j.toDouble(), i.toDouble())
+                placeSprite(assets, dim, ctx, COMMAND_SPRITE, j.toDouble(), i.toDouble())
             } else if (door != null) {
-                ctx.fillStyle = "#e5e5e5"
-                ctx.strokeStyle = "black"
-                if (door.vertical) {
-                    ctx.fillRect(dim.boardLeft + ((j + 0.4) * dim.tileSize), dim.boardTop + (i * dim.tileSize) + 1, dim.tileSize * 0.2, dim.tileSize - 2.0)
-                    ctx.strokeRect(dim.boardLeft + ((j + 0.4) * dim.tileSize), dim.boardTop + (i * dim.tileSize) + 1, dim.tileSize * 0.2, dim.tileSize - 2.0)
-                } else {
-                    ctx.fillRect(dim.boardLeft + (j * dim.tileSize) + 1, dim.boardTop + ((i + 0.4) * dim.tileSize), dim.tileSize - 2.0, dim.tileSize * 0.2)
-                    ctx.strokeRect(dim.boardLeft + (j * dim.tileSize) + 1, dim.boardTop + ((i + 0.4) * dim.tileSize), dim.tileSize - 2.0, dim.tileSize * 0.2)
+                var doorSprite = DOOR_CLOSED_SPRITE
+                if (door.open) {
+                    doorSprite = DOOR_OPEN_SPRITE
                 }
+                var doorAngle = 0.0
+                if (door.vertical) {
+                    doorAngle = 90.0
+                }
+                placeSpriteRotated(assets, dim, ctx, doorSprite, j.toDouble(), i.toDouble(), doorAngle)
             }
         }
     }
