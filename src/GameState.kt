@@ -216,6 +216,10 @@ public class GameState(logical : GameStateData) {
         }
     }
 
+    fun isPassable(x : Int, y : Int) : Boolean {
+        return logical.board.isPassable(x, y) && !(logical.characters.any { ch -> ch.value.x == x && ch.value.y == y })
+    }
+
     fun pathfind(fromX : Double, fromY : Double, toX : Double, toY : Double) : ArrayList<Pair<Int,Int>>? {
         val atX : Int = Math.round(fromX)
         val atY : Int = Math.round(fromY)

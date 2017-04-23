@@ -61,6 +61,17 @@ fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D,
     ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, dim.boardLeft + x * dim.tileSize, dim.boardTop + y * dim.tileSize, dim.tileSize, dim.tileSize)
 }
 
+fun placeSpriteBigger(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double, scale : Double) {
+    var imageSource : CanvasImageSource = assets.sprites.asDynamic()
+    var spx = spriteId % 20
+    var spy = spriteId / 20
+    val originX = dim.boardLeft + x * dim.tileSize + (dim.tileSize / 2.0)
+    val originY = dim.boardTop + y * dim.tileSize + (dim.tileSize / 2.0)
+    val drawAtX = originX - (scale * dim.tileSize / 2.0)
+    val drawAtY = originY - (scale * dim.tileSize / 2.0)
+    ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, drawAtX, drawAtY, dim.tileSize * scale, dim.tileSize * scale)
+}
+
 fun placeSpriteRotated(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double, angle : Double) {
     var imageSource : CanvasImageSource = assets.sprites.asDynamic()
     var spx = spriteId % 20
@@ -187,7 +198,7 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
             val whichCycle = Math.floor(elapsed / animStart.time)
             val frameFrac = (elapsed / animStart.time) - whichCycle
             val whichFrame = Math.floor(frameFrac * (animStart.end - animStart.start))
-            placeSprite(assets, dim, ctx, animStart.start + whichFrame, disp.value.dispx, disp.value.dispy)
+            placeSpriteBigger(assets, dim, ctx, animStart.start + whichFrame, disp.value.dispx, disp.value.dispy, 1.3)
         }
     }
     // Selection
