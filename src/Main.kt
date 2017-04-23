@@ -166,12 +166,40 @@ fun getMoves(board : GameBoard, moves : Int, ch : Character) : Map<Int,Int> {
 data class AvailableMove(val who : Character, val haveMoves : Int, val moves : Map<Int, Int>) {
 }
 
+data class ClickAnim(val x : Double, val y : Double, val start : Double, val at : Double) {
+    fun update(t : Double) : ClickAnim? {
+        val newTime = this.at + t
+        if (newTime > 0.3) {
+            return null
+        } else {
+            return this.copy(at = this.at + t)
+        }
+    }
+
+    fun render(ctx : CanvasRenderingContext2D) {
+        val rad = 90.0 * at
+        val fade = Math.max(0.0, 2.0 * (0.3 - at))
+        val grd = ctx.createRadialGradient(x, y, 0.0, x, y, rad)
+        grd.addColorStop(0.0, "rgba(255,255,0,0.0)")
+        grd.addColorStop(1.0, "rgba(255,255,0,${fade})")
+        ctx.fillStyle = grd
+        ctx.fillRect(x - rad, y - rad, 2.0 * rad, 2.0 * rad)
+    }
+}
+
 class YourTurnMode(var state : GameState) : IGameMode {
     val hasTurn : MutableSet<String> = getHasTurn(state.logical.characters)
     var elapsed = 0.0
     var moving : AvailableMove? = null
     var selected : Character? = null
     var menu : Menu<Pair<MenuCommandDirection, MenuCommandType>>? = null
+    var endTurn : Menu<Boolean>? = null
+    var clickAnims : List<ClickAnim> = listOf()
+
+    fun updateAnims(t : Double) {
+        val empty : List<ClickAnim> = emptyList()
+        clickAnims = empty.plus(clickAnims.mapNotNull { kv -> kv.update(t) })
+    }
 
     fun getHasTurn(chars : Map<String, Character>) : MutableSet<String> {
         val res : MutableSet<String> = mutableSetOf()
@@ -193,6 +221,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
     override fun runMode(t : Double) : IGameMode {
         elapsed += t
+        updateAnims(t)
         moveCharactersCloserToTargets(t)
         if (hasTurn.count() < 1) {
             return YourTurnIntroMode(state)
@@ -260,12 +289,17 @@ class YourTurnMode(var state : GameState) : IGameMode {
         else { return MenuCommandDirection.NONE }
     }
 
+    fun commandFromMenu(ch : Character, cmd : Pair<MenuCommandDirection,MenuCommandType>) : Command {
+        return WaitCommand(ch.id)
+    }
+
     override fun click(x : Double, y : Double) {
         val board = state.logical.board
         val dim = getBoardSize(screenX, screenY, board)
         val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
         val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
         console.log("mouse click ",xTile,yTile)
+        clickAnims = clickAnims.plus(ClickAnim(x, y, elapsed, 0.0))
         val csel = moving
         val m = menu
         if (csel != null) {
@@ -296,6 +330,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
                 } else if (cdisp != null) {
                     moving = null
                     selected = null
+                    val command = commandFromMenu(csel, sel)
                     hasTurn.remove(csel.id)
                     val newCharacters = state.logical.characters.plus(Pair(csel.id, csel.copy(x = cdisp.targetx.toInt(), y = cdisp.targety.toInt())))
                     state = GameState(logical = state.logical.copy(characters = newCharacters))
@@ -304,6 +339,10 @@ class YourTurnMode(var state : GameState) : IGameMode {
                     moving = null
                     selected = null
                 }
+            } else {
+                menu = null
+                moving = null
+                selected = null
             }
         } else {
             moving = null
@@ -320,7 +359,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
                             Pair("Move", Pair(MenuCommandDirection.NONE, MenuCommandType.MOVE))
                     )
                     val canAttack = canAttack(ch)
-                    for (door in state.getNearbyDoors(ch.x, ch.y)) {
+                    for (door in state.getNearbyDoors(dp.targetx.toInt(), dp.targety.toInt())) {
                         var dir = state.directionByDiff(ch.x,ch.y,door.value.x,door.value.y)
                         if (door.value.locked) {
                             menuItems.add(Pair("Attack ${state.directionName(dir)}", Pair(menuCommandDirection(dir), MenuCommandType.ATTACK)))
@@ -351,6 +390,21 @@ class YourTurnMode(var state : GameState) : IGameMode {
         var m = menu
         if (m != null) {
             m.render(ctx)
+        }
+
+        // End turn
+        val fontHeight = 1.2 * dim.tileSize
+        val x = dim.boardLeft + dim.boardWidth
+        val y = dim.boardTop + dim.boardHeight
+        val et = Menu<Boolean>(arrayListOf(Pair("End Turn", true)), fontHeight, 0.0, Rect(screenX.toDouble(),screenY.toDouble(),0.0,0.0))
+        endTurn = et
+        if (et != null) {
+            et.render(ctx)
+        }
+
+        // Fluff
+        for (a in clickAnims) {
+            a.render(ctx)
         }
     }
 

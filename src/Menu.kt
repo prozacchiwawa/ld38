@@ -9,6 +9,7 @@ import java.util.*
 
 val textSpacingVert = 5.0
 val menuBorderSize = 5.0
+val menuColor = "#3d6649"
 
 data class Rect(val left : Double, val top : Double, val width : Double, val height : Double) { }
 
@@ -61,7 +62,7 @@ data class Menu<T>(val selections : ArrayList<Pair<String,T>>, val tall : Double
         placed = pl
 
         ctx.textBaseline = "top"
-        ctx.fillStyle = "#3d6649"
+        ctx.fillStyle = menuColor
         ctx.fillRect(pl.left, pl.top, pl.width, pl.height)
         ctx.strokeStyle = "white"
         ctx.strokeRect(pl.left + 2, pl.top + 2, pl.width - 4, pl.height - 4)

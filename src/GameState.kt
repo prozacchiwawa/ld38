@@ -245,7 +245,7 @@ public class GameState(logical : GameStateData) {
     }
 
     fun getNearbyDoors(x : Int, y : Int) : Map<Int, DoorState> {
-        val res = logical.board.doors.filter { kv -> Math.abs((kv.value.x - x).toDouble()) <= 1 && Math.abs((kv.value.y - y).toDouble()) <= 1 }
+        val res = logical.board.doors.filter { kv -> Math.abs((kv.value.x - x).toDouble()) == 1.0 || Math.abs((kv.value.y - y).toDouble()) == 1.0 }
         val map : Map<Int, DoorState> = mapOf()
         return map.plus(res)
     }
