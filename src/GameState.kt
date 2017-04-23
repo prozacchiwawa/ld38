@@ -227,7 +227,6 @@ public class GameState(logical : GameStateData) {
         while (visited.count() > 0) {
             val first = visited[0]
             visited.removeAt(0)
-            console.log("check",first)
             if (first.me.first == wantX && first.me.second == wantY) {
                 val al : ArrayList<Pair<Int,Int>> = arrayListOf()
                 var f : PathComponent? = first
@@ -235,7 +234,6 @@ public class GameState(logical : GameStateData) {
                     al.add(0, f.me)
                     f = f.prev
                 }
-                console.log("route", al)
                 return al
             }
             addIfPassable(first.me.first - 1, first.me.second, first, visited)
@@ -249,7 +247,7 @@ public class GameState(logical : GameStateData) {
     fun executeCommand(ch : Character, cmd : CommandType, x : Int, y : Int) : GameState {
         val cdisp = display.characters.get(ch.id)
         if (cdisp != null) {
-            val newChar = ch.copy(x = cdisp.targetx.toInt(), y = cdisp.targety.toInt())
+            val newChar = ch.copy(x = cdisp.dispx.toInt(), y = cdisp.dispy.toInt())
             val logical = logical.copy(characters = logical.characters.plus(Pair(ch.id, newChar)))
             if (cmd == CommandType.OPEN) {
                 val ord = logical.board.ordOfCoords(x, y)
@@ -266,6 +264,7 @@ public class GameState(logical : GameStateData) {
                     return GameState(logical.copy(board = logical.board.copy(doors = logical.board.doors.plus(Pair(ord, newDoor)))))
                 }
             }
+            return GameState(logical)
         }
         return this
     }
