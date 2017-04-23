@@ -45,6 +45,7 @@ interface IGameMode {
     abstract fun getState() : GameState
     abstract fun click(x : Double, y : Double)
     abstract fun overlay(ctx : CanvasRenderingContext2D)
+    abstract fun underlay(boardDim : BoardDim, ctx : CanvasRenderingContext2D)
 }
 
 //
@@ -127,11 +128,51 @@ class YourTurnIntroMode(var state : GameState) : IGameMode {
         ctx.fillStyle = "rgba(255,255,255,1)"
         ctx.fillText("Your Move", tleft, ttop)
     }
+
+    override fun underlay(boardDim : BoardDim, ctx : CanvasRenderingContext2D) {
+
+    }
+}
+
+fun getMoves(board : GameBoard, ch : Character) : Map<Int,Int> {
+    var moves = 3
+    if (ch.health < CHAR_START_HP * 0.3) {
+        moves = 1
+    } else if (ch.health < CHAR_START_HP) {
+        moves = 2
+    }
+    val visited : MutableMap<Int, Int> = mutableMapOf(Pair(ch.y * board.dimX + ch.x, moves))
+    val results : MutableMap<Int, Int> = mutableMapOf()
+    while (visited.count() > 0) {
+        val check = visited.asSequence().first()
+        visited.remove(check.key)
+        val checkM = results.get(check.key)
+        val passable = board.isPassable(check.key % board.dimX, check.key / board.dimX)
+        if ((checkM == null || checkM < check.value) && passable) {
+            results.put(check.key, check.value)
+        }
+        if (check.value == 0 || !passable) {
+            continue
+        }
+        val left = check.key - 1
+        val right = check.key + 1
+        val up = check.key - board.dimX
+        val down = check.key + board.dimX
+        visited.put(left, check.value - 1)
+        visited.put(right, check.value - 1)
+        visited.put(up, check.value - 1)
+        visited.put(down, check.value - 1)
+    }
+    return results
+}
+
+data class AvailableMove(val who : Character, val moves : Map<Int, Int>) {
 }
 
 class YourTurnMode(var state : GameState) : IGameMode {
     val hasTurn : MutableSet<String> = getHasTurn(state.logical.characters)
     var elapsed = 0.0
+    var selected : AvailableMove? = null
 
     fun getHasTurn(chars : Map<String, Character>) : MutableSet<String> {
         val res : MutableSet<String> = mutableSetOf()
@@ -162,6 +203,13 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
         val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
         console.log("mouse click ",xTile,yTile)
+        selected = null
+        for (chName in hasTurn) {
+            val ch = state.logical.characters.get(chName)
+            if (ch != null && ch.x == xTile && ch.y == yTile) {
+                selected = AvailableMove(ch, getMoves(board, ch))
+            }
+        }
         if (xTile < 0 || yTile < 0 || xTile >= board.dimX || yTile >= board.dimY) {
             state.sel = null
         } else {
@@ -179,6 +227,20 @@ class YourTurnMode(var state : GameState) : IGameMode {
                 var stage = elapsed - Math.floor(elapsed)
                 var sprite = Math.floor(3.0 + (stage * 4.0))
                 placeSprite(assets, dim, ctx, sprite, ch.x, ch.y)
+            }
+        }
+    }
+
+    override fun underlay(dim : BoardDim, ctx : CanvasRenderingContext2D) {
+        var sel = selected
+        if (sel != null) {
+            for (kv in sel.moves) {
+                val y = kv.key / state.logical.board.dimX
+                val x = kv.key % state.logical.board.dimX
+                ctx.fillStyle = "rgba(247, 245, 178, 0.3)"
+                ctx.fillRect(dim.boardLeft + (x * dim.tileSize), dim.boardTop + (y * dim.tileSize), dim.tileSize, dim.tileSize)
+                ctx.strokeStyle = "rgba(247, 245, 178, 0.6)"
+                ctx.strokeRect(dim.boardLeft + (x * dim.tileSize), dim.boardTop + (y * dim.tileSize), dim.tileSize , dim.tileSize)
             }
         }
     }
@@ -205,7 +267,7 @@ class GameAnimator(var mode : IGameMode) {
             kotlin.browser.window.requestAnimationFrame { runFrame() }
             val context = getRenderContext()
             if (context != null) {
-                drawBoard(screenX, screenY, context, mode.getState(), assets)
+                drawBoard(screenX, screenY, context, mode.getState(), assets, { dim -> mode.underlay(dim, context) })
                 mode.overlay(context)
             } else {
                 throw Exception("No canvas named main")

@@ -39,7 +39,7 @@ val roomColors =
                 Pair(SquareAssoc.SECURITY, "rgba(112, 68, 70, 0.3)")
         )
 
-fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, state : GameState, assets : Assets) {
+fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, state : GameState, assets : Assets, underlay : (BoardDim) -> Unit) {
     var board = state.logical.board
     var chars = state.logical.characters
     val dim = getBoardSize(screenx, screeny, board)
@@ -80,6 +80,10 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
             }
         }
     }
+
+    // Underlay
+    underlay(dim)
+
     // Render people
     for (p in chars) {
         placeSprite(assets, dim, ctx, 0, p.value.x, p.value.y)
