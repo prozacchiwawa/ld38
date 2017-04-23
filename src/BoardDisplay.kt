@@ -10,7 +10,7 @@ import org.w3c.dom.CanvasRenderingContext2D
 data class BoardDim(val boardLeft : Double, val boardTop : Double, val boardWidth : Double, val boardHeight : Double, val tileSize : Double) {
 }
 
-fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Int, y : Int) {
+fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double) {
     var imageSource : CanvasImageSource = assets.sprites.asDynamic()
     var spx = spriteId % 20
     var spy = spriteId / 20
@@ -64,9 +64,9 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
             }
             // Render objects
             if (board.square[idx].role == SquareRole.HEALING_BED) {
-                placeSprite(assets, dim, ctx, 1, j, i)
+                placeSprite(assets, dim, ctx, 1, j.toDouble(), i.toDouble())
             } else if (board.square[idx].role == SquareRole.COMMAND_SEAT) {
-                placeSprite(assets, dim, ctx, 2, j, i)
+                placeSprite(assets, dim, ctx, 2, j.toDouble(), i.toDouble())
             } else if (door != null) {
                 ctx.fillStyle = "#e5e5e5"
                 ctx.strokeStyle = "black"
@@ -85,8 +85,8 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
     underlay(dim)
 
     // Render people
-    for (p in chars) {
-        placeSprite(assets, dim, ctx, 0, p.value.x, p.value.y)
+    for (disp in state.display.characters) {
+        placeSprite(assets, dim, ctx, 0, disp.value.dispx, disp.value.dispy)
     }
     // Selection
     val sel = state.sel

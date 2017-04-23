@@ -134,13 +134,7 @@ class YourTurnIntroMode(var state : GameState) : IGameMode {
     }
 }
 
-fun getMoves(board : GameBoard, ch : Character) : Map<Int,Int> {
-    var moves = 3
-    if (ch.health < CHAR_START_HP * 0.3) {
-        moves = 1
-    } else if (ch.health < CHAR_START_HP) {
-        moves = 2
-    }
+fun getMoves(board : GameBoard, moves : Int, ch : Character) : Map<Int,Int> {
     val visited : MutableMap<Int, Int> = mutableMapOf(Pair(ch.y * board.dimX + ch.x, moves))
     val results : MutableMap<Int, Int> = mutableMapOf()
     while (visited.count() > 0) {
@@ -166,7 +160,7 @@ fun getMoves(board : GameBoard, ch : Character) : Map<Int,Int> {
     return results
 }
 
-data class AvailableMove(val who : Character, val moves : Map<Int, Int>) {
+data class AvailableMove(val who : Character, val haveMoves : Int, val moves : Map<Int, Int>) {
 }
 
 class YourTurnMode(var state : GameState) : IGameMode {
@@ -182,6 +176,14 @@ class YourTurnMode(var state : GameState) : IGameMode {
             }
         }
         return res
+    }
+
+    fun getAvailMoves(chars : Map<String, Character>) : MutableMap<String, Int> {
+        val result : MutableMap<String, Int> = mutableMapOf()
+        for (kv in chars) {
+            result.put(kv.key, kv.value.availMoves())
+        }
+        return result
     }
 
     override fun runMode(t : Double) : IGameMode {
@@ -203,17 +205,32 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
         val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
         console.log("mouse click ",xTile,yTile)
-        selected = null
-        for (chName in hasTurn) {
-            val ch = state.logical.characters.get(chName)
-            if (ch != null && ch.x == xTile && ch.y == yTile) {
-                selected = AvailableMove(ch, getMoves(board, ch))
-            }
-        }
+        val csel = selected
         if (xTile < 0 || yTile < 0 || xTile >= board.dimX || yTile >= board.dimY) {
             state.sel = null
+        } else if (csel != null) {
+            val idx = xTile + (board.dimX * yTile)
+            val move = csel.moves.get(idx)
+            if (move != null) {
+                val cdisp = state.display.characters.get(csel.who.id)
+                if (cdisp != null) {
+                    state.display.characters.put(csel.who.id, cdisp.copy(dispx = xTile.toDouble(), dispy = yTile.toDouble()))
+                }
+            } else if (xTile == csel.who.x && xTile == csel.who.y) {
+                // Preserve selected
+            } else {
+                selected = null
+            }
         } else {
-            state.sel = Pair(xTile.toInt(), yTile.toInt())
+            selected = null
+            for (chName in hasTurn) {
+                val dp = state.display.characters.get(chName)
+                var ch = state.logical.characters.get(chName)
+                if (dp != null && ch != null && Math.abs(dp.dispx - xTile) < 0.01 && Math.abs(dp.dispy - yTile) < 0.01) {
+                    var movesLeft = ch.availMoves()
+                    selected = AvailableMove(ch, movesLeft, getMoves(board, movesLeft, ch))
+                }
+            }
         }
     }
 
@@ -221,12 +238,12 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val board = state.logical.board
         val dim = getBoardSize(screenX, screenY, board)
         for (name in hasTurn) {
-            val ch = state.logical.characters.get(name)
+            val ch = state.display.characters.get(name)
             if (ch != null) {
                 var cycle = elapsed * 2.0
                 var stage = elapsed - Math.floor(elapsed)
                 var sprite = Math.floor(3.0 + (stage * 4.0))
-                placeSprite(assets, dim, ctx, sprite, ch.x, ch.y)
+                placeSprite(assets, dim, ctx, sprite, ch.dispx, ch.dispy)
             }
         }
     }

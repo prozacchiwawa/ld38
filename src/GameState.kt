@@ -47,6 +47,15 @@ public data class Character(
         val health : Int
         ) {
 
+    fun availMoves() : Int {
+        var moves = 3
+        if (health < CHAR_START_HP * 0.3) {
+            moves = 1
+        } else if (health < CHAR_START_HP) {
+            moves = 2
+        }
+        return moves
+    }
 }
 
 public data class DoorState(
