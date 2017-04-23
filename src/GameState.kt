@@ -225,12 +225,15 @@ public class GameState(logical : GameStateData) {
         while (visited.count() > 0) {
             val first = visited[0]
             visited.removeAt(0)
+            console.log("check",first)
             if (first.me.first == wantX && first.me.second == wantY) {
                 val al : ArrayList<Pair<Int,Int>> = arrayListOf()
-                var f = first
+                var f : PathComponent? = first
                 while (f != null) {
                     al.add(0, f.me)
+                    f = f.prev
                 }
+                console.log("route", al)
                 return al
             }
             addIfPassable(first.me.first - 1, first.me.second, first, visited)
