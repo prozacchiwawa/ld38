@@ -599,7 +599,7 @@ public class GameState(logical : GameStateData) {
         }
         val charpositions = logical.characters.values.map { ch -> Pair(logical.board.ordOfCoords(ch.x, ch.y), ch) }.toMap()
 
-        if (rand() % 3 == 0) {
+        if (rand().toInt() % 3 == 0) {
             if (recruitCount < logical.characters.size / 5) {
                 // Recruit
                 console.log("Try to recruit")
