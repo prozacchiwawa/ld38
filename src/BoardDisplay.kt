@@ -6,8 +6,8 @@ package ldjam.prozacchiwawa
 
 import org.w3c.dom.CanvasImageSource
 import org.w3c.dom.CanvasRenderingContext2D
+import org.w3c.dom.HTMLCanvasElement
 
-val TILESIZE = 128.0
 val CHICKEN_SPRITE = 0
 val BED_SPRITE = 1
 val COMMAND_SPRITE = 2
@@ -61,15 +61,14 @@ fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D,
     ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, dim.boardLeft + x * dim.tileSize, dim.boardTop + y * dim.tileSize, dim.tileSize, dim.tileSize)
 }
 
-fun placeSpriteBigger(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double, scale : Double) {
-    var imageSource : CanvasImageSource = assets.sprites.asDynamic()
-    var spx = spriteId % 20
-    var spy = spriteId / 20
+fun placeCharBigger(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, team : Int, spriteId : Int, x : Double, y : Double, scale : Double) {
+    val idx = team * 10000 + spriteId
+    val imageSource = assets.paletteSwaps[idx].asDynamic()
     val originX = dim.boardLeft + x * dim.tileSize + (dim.tileSize / 2.0)
     val originY = dim.boardTop + y * dim.tileSize + (dim.tileSize / 2.0)
     val drawAtX = originX - (scale * dim.tileSize / 2.0)
     val drawAtY = originY - (scale * dim.tileSize / 2.0)
-    ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, drawAtX, drawAtY, dim.tileSize * scale, dim.tileSize * scale)
+    ctx.drawImage(imageSource, 0.0, 0.0, TILESIZE, TILESIZE, drawAtX, drawAtY, dim.tileSize * scale, dim.tileSize * scale)
 }
 
 fun placeSpriteRotated(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double, angle : Double) {
@@ -190,15 +189,16 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
 
     // Render people
     for (disp in state.display.characters) {
-        val elapsed = lastTime - disp.value.animstart
+        val ch = state.logical.characters[disp.key]
         val animStart = charAnimations.get(disp.value.animation)
-        if (animStart == null) {
-            placeSprite(assets, dim, ctx, CHICKEN_SPRITE, disp.value.dispx, disp.value.dispy)
-        } else {
+        if (ch != null && animStart != null) {
+            val elapsed = lastTime - disp.value.animstart
             val whichCycle = Math.floor(elapsed / animStart.time)
             val frameFrac = (elapsed / animStart.time) - whichCycle
             val whichFrame = Math.floor(frameFrac * (animStart.end - animStart.start))
-            placeSpriteBigger(assets, dim, ctx, animStart.start + whichFrame, disp.value.dispx, disp.value.dispy, 1.3)
+            placeCharBigger(assets, dim, ctx, ch.team, animStart.start + whichFrame, disp.value.dispx, disp.value.dispy, 6.0)
+        } else {
+            placeSprite(assets, dim, ctx, CHICKEN_SPRITE, disp.value.dispx, disp.value.dispy)
         }
     }
     // Selection
