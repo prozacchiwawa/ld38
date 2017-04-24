@@ -373,15 +373,40 @@ data class AttackMode(val state : GameState, val ch : Character, val cmd : Comma
     }
 }
 
+class SpriteAnim(val frames : Iterable<Int>, val duration : Double, val x : Int, val y : Int) {
+    var elapsed = 0.0
+    val frameList = frames.toList()
+
+    fun update(t : Double) : SpriteAnim? {
+        elapsed += t
+        if (elapsed < duration) {
+            return this
+        } else {
+            return null
+        }
+    }
+
+    fun render(dim : BoardDim, ctx : CanvasRenderingContext2D) {
+        val frame = Math.floor((elapsed / duration) * frameList.size)
+        val atX = dim.boardLeft + (dim.tileSize * x)
+        val atY = dim.boardTop + (dim.tileSize * y)
+        console.log("Render ${frame} at ${atX},${atY}")
+        placeSprite(assets, dim, ctx, frameList[frame], atX, atY)
+    }
+}
+
 class YourTurnMode(var state : GameState) : IGameMode {
     var endTurn : Menu<Boolean>? = null
     var elapsed = 0.0
     var submode : IGameSubmode = PickingCharacterMode(state, getHasTurn(state.logical.characters))
     var clickAnims : List<ClickAnim> = listOf()
+    var doorSparks : List<SpriteAnim> = listOf()
 
     fun updateAnims(t : Double) {
         val empty : List<ClickAnim> = emptyList()
         clickAnims = empty.plus(clickAnims.mapNotNull { kv -> kv.update(t) })
+        val ampty : List<SpriteAnim> = emptyList()
+        doorSparks = ampty.plus(doorSparks.mapNotNull { kv -> kv.update(t) })
     }
 
     fun getHasTurn(chars : Map<String, Character>) : MutableSet<String> {
@@ -400,6 +425,18 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val res = submode.update(t)
         state = res.first
         submode = res.second
+
+        if ((rand() * 90.0).toInt() == 0) {
+            val doors = state.logical.board.doors.filter { d -> d.value.hp == 0 }.toList()
+            if (doors.size > 0) {
+                val theDoor = Math.floor(rand() * doors.size)
+                val door = doors[theDoor]
+                val coords = state.logical.board.coordsOfOrd(door.first)
+                console.log("DOOR SPARKS",coords)
+                doorSparks = doorSparks.plus(SpriteAnim(15..19, 0.5, coords.first, coords.second))
+            }
+        }
+
         if (submode.finish()) {
             return YourTurnIntroMode(state)
         } else {
@@ -443,6 +480,10 @@ class YourTurnMode(var state : GameState) : IGameMode {
         // Fluff
         for (a in clickAnims) {
             a.render(ctx)
+        }
+
+        for (d in doorSparks) {
+            d.render(dim, ctx)
         }
     }
 

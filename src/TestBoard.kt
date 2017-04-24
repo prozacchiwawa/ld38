@@ -123,7 +123,7 @@ fun simpleBoardConvert(vararg s : String) : GameState {
             if (ch == '#') {
                 boardContents.add(Square(SquareRole.WALL, SquareAssoc.NOASSOC, 0))
             } else if (ch == '|') {
-                doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, true, false, false, false))
+                doors.put(Ord(idx), DoorState(j, i, 0 /*DOOR_START_HP*/, DoorType.INTERIOR, true, false, false, false))
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else if (ch == '-') {
                 doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, false, false, false, false))
