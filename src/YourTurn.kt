@@ -439,7 +439,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
         }
 
         if (submode.finish()) {
-            return YourTurnIntroMode(state)
+            return ComputerTurnMode(1, state)
         } else {
             return this
         }
