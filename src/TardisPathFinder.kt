@@ -17,10 +17,10 @@ interface ITardisPathFinderEstimate {
 
 class TimeCoordNode {
     var depth = 0
+    var ch : Character? = null
     var m: GameStateData? = null
     var parent: TimeCoordNode? = null
     var action : Pair<Character, Command>? = null
-    var targetScore : Double = 0.0
 
     fun getParent(): TimeCoordNode? {
         return parent; }
@@ -42,35 +42,25 @@ class TimeCoordNode {
     fun h(): Double {
         return H; }
 
-    var team: Int = 0
-
-    public constructor(team: Int, targetScore : Double, m: GameStateData, estimate: Double) {
+    public constructor(ch : Character, m: GameStateData, estimate: Double) {
         this.parent = null;
-        this.targetScore = targetScore
         G = 0;
         H = estimate;
         this.m = m
-        this.team = team
+        this.ch = ch
         this.depth = 0
     }
 
-    var viable: Boolean = true
-    var win: Boolean = false
-
-    public constructor(team : Int, parent: TimeCoordNode, action: Pair<Character,Command>, backDistance: Int, estimate: Double) {
-        this.team = team
+    public constructor(ch : Character, target : Pair<Int, Int>, parent: TimeCoordNode, action: Pair<Character,Command>, backDistance: Int, estimate: Double) {
         this.parent = parent;
         this.action = action
+        this.ch = ch
         this.depth = parent.depth + 1
         G = backDistance
         var mm = parent.m
         if (mm != null) {
             m = GameState(mm).executeCommand(action.first, action.second.type, action.second.location.first, action.second.location.second).logical
-            if (mm.isBetterScore(team, targetScore)) {
-                H = 1e15;
-            } else {
-                H = estimate;
-            }
+            H = estimate
         }
     }
 
@@ -109,19 +99,20 @@ class TimeCoordNode {
 // A*
 // -- I always took you where you needed to go
 public class TardisPathFinder {
-    var targetScore : Double = 0.0
-
     val openNodes = ArrayList<TimeCoordNode>()
     val inOpenNodes: MutableMap<GameStateData, TimeCoordNode> = mutableMapOf()
     val closedNodes: MutableMap<GameStateData, TimeCoordNode> = mutableMapOf()
     var m: GameStateData? = null
     var finalMine: GameStateData? = null
     var e: ITardisPathFinderEstimate? = null
+    var ch : Character? = null
+    var target : Pair<Int,Int>? = null
 
-    public constructor(m: GameStateData, targetScore : Double, e: ITardisPathFinderEstimate) {
+    public constructor(ch : Character, target : Pair<Int,Int>, m: GameStateData, e: ITardisPathFinderEstimate) {
         this.m = m;
         this.e = e;
-        this.targetScore = targetScore
+        this.ch = ch
+        this.target = target
     }
 
     public fun getFinalState(): GameStateData? {
@@ -141,21 +132,28 @@ public class TardisPathFinder {
             }
             result.reverse();
         }
+        console.log("Found Path ${result} with score ${finalMine}")
         return result;
     }
 
-    fun compute(team: Int, maxDepth : Int): ArrayList<Pair<Character,Command>>? {
+    var iterCount = 0
+
+    fun compute() : ArrayList<Pair<Character,Command>>? {
         val mm = m
         var ee = e
-        if (mm != null && ee != null) {
-            var iterCount: Int = 0;
+        var cc = ch
+        var tgt = target
+        if (mm != null && ee != null && cc != null && tgt != null) {
             openNodes.clear();
             inOpenNodes.clear()
             closedNodes.clear()
-            var cn: TimeCoordNode = TimeCoordNode(team, targetScore, mm, ee.estimateDistance(mm));
+            var cn: TimeCoordNode = TimeCoordNode(cc, mm, ee.estimateDistance(mm));
             openNodes.add(cn);
             inOpenNodes.put(mm, cn);
-            while (iterCount++ < 100000 && openNodes.size != 0) {
+            val movableSet = mm.characters.values.filter { ach -> ach.id == cc.id }.map { ch -> ch.id }.toSet()
+
+            while (openNodes.size != 0) {
+                console.log("Remaining ${openNodes.size}")
                 openNodes.sortWith(object : Comparator<TimeCoordNode> {
                     override fun compare(a: TimeCoordNode, b: TimeCoordNode): Int {
                         if (a.ff() < b.ff()) {
@@ -167,8 +165,10 @@ public class TardisPathFinder {
                         }
                     }
                 });
-                if (mm.isBetterScore(team, targetScore)) {
-                    return FoundPath(openNodes);
+                if (cc != null && tgt != null) {
+                    if (cc.x == tgt.first && cc.y == tgt.second) {
+                        return FoundPath(openNodes)
+                    }
                 }
 
                 //if (openNodes.get(0).m.getSteps() - m.getSteps() > 3 * to.manhattanDistance(from))
@@ -183,19 +183,14 @@ public class TardisPathFinder {
                     inOpenNodes.remove(nodeM);
 
                     // Now, consider each of the current node's neighbours
-                    var neighbors : List<Pair<Character,Command>> = emptyList()
-                    if (node.depth < maxDepth) {
-                        neighbors = nodeM.neighbors(emptySet())
-                    }
+                    var neighbors: List<Pair<Character, Command>> = emptyList()
+                    neighbors = nodeM.neighbors(movableSet)
+
                     for (action in neighbors) {
                         var inClosedList = false;
                         var inOpenList = false;
                         var g = node.g() + 1;
-                        var tn = TimeCoordNode(team, node, action, g, ee.estimateDistance(mm));
-
-                        if (!tn.viable) {
-                            continue;
-                        }
+                        var tn = TimeCoordNode(cc, tgt, node, action, g, ee.estimateDistance(mm));
 
                         var tnM = tn.m
                         if (tnM != null) {
@@ -209,17 +204,14 @@ public class TardisPathFinder {
                                 }
                             }
                             if (neighbor_node == null) {
-
                                 openNodes.add(tn);
                                 inOpenNodes.put(tnM, tn);
                             }
                         }
                     }
                 }
-
-                return null; // No way to find it!
             }
         }
-        return null; // No way to find it!
+        return null
     }
 }

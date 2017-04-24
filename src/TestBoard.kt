@@ -201,9 +201,8 @@ fun simpleBoardConvert(vararg s : String) : GameState {
         while (characters.contains(fullName)) {
             fullName = rollName(square)
         }
-        console.log(fullName)
         chosenNames.add(fullName)
-        characters.put(fullName, Character(fullName, fullName, j, i, charClass, -1, CHAR_START_HP))
+        characters.put(fullName, Character(fullName, fullName, j, i, charClass, -1, CHAR_START_HP, arrayListOf()))
     }
 
     var assignedTeamLeads = 0
