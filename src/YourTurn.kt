@@ -238,7 +238,7 @@ data class CharacterMenuMode(val state : GameState, val ch : Character, val menu
                 } else if (clicked == CommandType.WAIT) {
                     var cdisp = state.display.characters.get(ch.id)
                     if (cdisp != null) {
-                        val newState = state.executeCommand(ch, CommandType.WAIT, cdisp.targetx.toInt(), cdisp.targety.toInt())
+                        val newState = state.executeCommand(ch.copy(x = cdisp.targetx.toInt(), y = cdisp.targety.toInt()), CommandType.WAIT, cdisp.targetx.toInt(), cdisp.targety.toInt())
                         return Pair(newState, PickingCharacterMode(newState, hasTurn.minus(ch.id)))
                     } else {
                         return Pair(state,PickingCharacterMode(state, hasTurn))
@@ -327,12 +327,13 @@ data class PlacementSelectionMode(val state : GameState, val ch : Character, val
         val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
         val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
         val ord = board.ordOfCoords(xTile, yTile)
-        if (usable.getOrElse(cmd, { setOf() }).contains(ord)) {
+        val cdisp = state.display.characters.get(ch.id)
+        if (cdisp != null && usable.getOrElse(cmd, { setOf() }).contains(ord)) {
             if (cmd == CommandType.ATTACK) {
-                val newState = state.executeCommand(ch, cmd, xTile, yTile)
+                val newState = state.executeCommand(ch.copy(x = cdisp.targetx.toInt(), y = cdisp.targety.toInt()), cmd, xTile, yTile)
                 return Pair(newState, AttackMode(newState, ch, cmd, usable, xTile, yTile, hasTurn.minus(ch.id)))
             } else {
-                val newState = state.executeCommand(ch, cmd, xTile, yTile)
+                val newState = state.executeCommand(ch.copy(x = cdisp.targetx.toInt(), y = cdisp.targety.toInt()), cmd, xTile, yTile)
                 return Pair(newState, PickingCharacterMode(newState, hasTurn.minus(ch.id)))
             }
         } else {

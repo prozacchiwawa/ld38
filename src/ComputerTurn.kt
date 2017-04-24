@@ -6,12 +6,18 @@ package ldjam.prozacchiwawa
 
 import org.w3c.dom.CanvasRenderingContext2D
 
+
+
 class ComputerTurnMode(val turn : Int, var state : GameState) : IGameMode {
     val colorSwaps = mapOf(Pair(0, "red"), Pair(1, "blue"), Pair(2, "green"), Pair(3, "yellow"))
     var elapsed = 0.0
     override fun runMode(t : Double) : IGameMode {
         elapsed += t
-        if (elapsed > 5.0) {
+        if (elapsed > 2.0) {
+            val commands = state.findAWayForward(turn)
+            for (cmd in commands) {
+                state = state.executeCommand(cmd.first, cmd.second.type, cmd.second.location.first, cmd.second.location.second)
+            }
             if (turn == 3) {
                 return YourTurnIntroMode(state.doPostTurn())
             } else {
@@ -27,10 +33,10 @@ class ComputerTurnMode(val turn : Int, var state : GameState) : IGameMode {
     }
     override fun overlay(ctx : CanvasRenderingContext2D) {
         var alpha = 0.5
-        if (elapsed > 4.0) {
-            alpha = 0.5 * (5.0 - elapsed)
-        } else if (elapsed < 1.0) {
-            alpha = 0.5 * elapsed
+        if (elapsed > 1.5) {
+            alpha = 2.0 - elapsed
+        } else if (elapsed < 0.5) {
+            alpha = elapsed
         }
         ctx.fillStyle = "rgba(0,0,0,${alpha})"
         ctx.fillRect(0.0, 0.0, screenX.toDouble(), screenY.toDouble())

@@ -155,10 +155,151 @@ public data class CharacterDisplay(
         ) {
 }
 
+enum class EquivType {
+    OPEN_DOOR, CLOSED_DOOR, UNIT
+}
+
+data class EquivPosRecord(var type : EquivType, val x : Int, val y : Int, val team : Int) {
+}
+
 public data class GameStateData(
         val characters : Map<String, Character>,
         val board : GameBoard
         ) {
+    fun distinctState() : List<EquivPosRecord> {
+        val doors = board.doors.values.map { d ->
+            if (d.open) {
+                EquivPosRecord(EquivType.OPEN_DOOR, d.x, d.y, 0)
+            } else {
+                EquivPosRecord(EquivType.CLOSED_DOOR, d.x, d.y, 0)
+            }
+        }
+        return characters.values.map { ch -> EquivPosRecord(EquivType.UNIT, ch.x, ch.y, ch.team) }.plus(doors)
+    }
+    fun equivalent(other : GameStateData) : Boolean {
+        return distinctState().equals(other.distinctState())
+    }
+
+    override fun hashCode() : Int {
+        return toString().hashCode()
+    }
+
+    fun visualize() : String {
+        return toString()
+    }
+
+    override fun toString() : String {
+        return characters.values.map { ch -> ch.toString() }.joinToString("\n") +
+            board.doors.values.map { d -> d.toString() }.joinToString("\n")
+    }
+
+    fun isWin(team : Int) : Boolean {
+        return characters.values.filter { ch ->
+                if (ch.team == team) {
+                    val ord = board.ordOfCoords(ch.x, ch.y)
+                    board.square[ord.idx].role == SquareRole.COMMAND_SEAT
+                } else {
+                    false
+                }
+            }.count() >= 3
+    }
+
+    fun isBetterScore(team : Int, score : Double) : Boolean {
+        return score(team) > score
+    }
+
+    fun score(team : Int) : Double {
+        return characters.values.map { ch ->
+            val ord = board.ordOfCoords(ch.x, ch.y)
+            val ords = arrayOf(
+                    board.ordOfCoords(ch.x-1,ch.y),
+                    board.ordOfCoords(ch.x+1,ch.y),
+                    board.ordOfCoords(ch.x,ch.y-1),
+                    board.ordOfCoords(ch.x,ch.y+1)
+            )
+            if (ch.team == team)
+            {
+                var score = ch.health
+                if (board.square[ord.idx].role == SquareRole.COMMAND_SEAT) {
+                    score += 1000
+                }
+                if (ords.any { ord ->
+                    board.square[ord.idx].role == SquareRole.WORK_STATION }) {
+                    score += 100
+                }
+                score
+            } else {
+                var score = -ch.health
+                if (board.square[ord.idx].role == SquareRole.COMMAND_SEAT) {
+                    score -= 1000
+                }
+                if (ords.any { ord ->
+                    board.square[ord.idx].role == SquareRole.WORK_STATION }) {
+                    score -= 100
+                }
+                score
+            }
+        }.sumByDouble { d -> d.toDouble() }
+    }
+
+    fun isPassable(x : Int, y : Int) : Boolean {
+        return board.isPassable(x, y) && !(characters.any { ch -> ch.value.x == x && ch.value.y == y })
+    }
+
+    fun nonMoveNeighbors(ch : Character) : List<Pair<Character,Command>> {
+        val neighbors = ArrayList<Pair<Character,Command>>()
+        val ords = arrayOf(
+                board.ordOfCoords(ch.x-1,ch.y),
+                board.ordOfCoords(ch.x+1,ch.y),
+                board.ordOfCoords(ch.x,ch.y-1),
+                board.ordOfCoords(ch.x,ch.y+1)
+        )
+        for (ord in ords) {
+            var door = board.doors.get(ord)
+            if (door != null) {
+                if (door.locked) {
+                    neighbors.add(Pair(ch, Command(CommandType.ATTACK, board.coordsOfOrd(ord))))
+                } else if (!door.open) {
+                    neighbors.add(Pair(ch, Command(CommandType.OPEN, board.coordsOfOrd(ord))))
+                } else {
+                    neighbors.add(Pair(ch, Command(CommandType.CLOSE, board.coordsOfOrd(ord))))
+                }
+            }
+        }
+        for (ot in characters.values) {
+            if (ords.any { ord ->
+                val coord = board.coordsOfOrd(ord)
+                ot.x == coord.first && ot.y == coord.second && ch.team != ot.team
+            }) {
+                neighbors.add(Pair(ch, Command(CommandType.ATTACK, Pair(ch.x, ch.y))))
+            }
+        }
+        neighbors.add(Pair(ch, Command(CommandType.WAIT, Pair(ch.x, ch.y))))
+        return neighbors
+    }
+
+    fun neighbors(exclude : Set<String>) : List<Pair<Character,Command>> {
+        val neighbors = ArrayList<Pair<Character,Command>>()
+        for (ch in characters.values) {
+            if (exclude.contains(ch.id)) {
+                continue
+            }
+            if (isPassable(ch.x-1,ch.y)) {
+                neighbors.plusAssign(nonMoveNeighbors(ch.copy(x = ch.x-1, y = ch.y)))
+            }
+            if (isPassable(ch.x+1,ch.y)) {
+                neighbors.plusAssign(nonMoveNeighbors(ch.copy(x = ch.x+1, y = ch.y)))
+            }
+            if (isPassable(ch.x,ch.y-1)) {
+                neighbors.plusAssign(nonMoveNeighbors(ch.copy(x = ch.x, y = ch.y-1)))
+            }
+            if (isPassable(ch.x,ch.y+1)) {
+                neighbors.plusAssign(nonMoveNeighbors(ch.copy(x = ch.x, y = ch.y+1)))
+            }
+            neighbors.add(Pair(ch, Command(CommandType.WAIT, Pair(ch.x, ch.y))))
+        }
+        return neighbors
+    }
 }
 
 public data class DoorDisplayState(
@@ -232,10 +373,6 @@ public class GameState(logical : GameStateData) {
         }
     }
 
-    fun isPassable(x : Int, y : Int) : Boolean {
-        return logical.board.isPassable(x, y) && !(logical.characters.any { ch -> ch.value.x == x && ch.value.y == y })
-    }
-
     fun pathfind(fromX : Double, fromY : Double, toX : Double, toY : Double) : ArrayList<Pair<Int,Int>>? {
         val atX : Int = Math.round(fromX)
         val atY : Int = Math.round(fromY)
@@ -267,13 +404,7 @@ public class GameState(logical : GameStateData) {
     fun executeCommand(ch : Character, cmd : CommandType, x : Int, y : Int) : GameState {
         val cdisp = display.characters.get(ch.id)
         if (cdisp != null) {
-            var health = ch.health
-            val ord = logical.board.ordOfCoords(cdisp.dispx.toInt(),cdisp.dispy.toInt())
-            if (logical.board.square[ord.idx].role == SquareRole.HEALING_BED) {
-                health = CHAR_START_HP
-            }
-            val newChar = ch.copy(x = cdisp.dispx.toInt(), y = cdisp.dispy.toInt(), health = health)
-            var logical = logical.copy(characters = logical.characters.plus(Pair(ch.id, newChar)))
+            var logical = logical.copy(characters = logical.characters.plus(Pair(ch.id, ch)))
             if (cmd == CommandType.OPEN) {
                 val ord = logical.board.ordOfCoords(x, y)
                 val door = logical.board.doors.get(ord)
@@ -336,7 +467,10 @@ public class GameState(logical : GameStateData) {
 
     fun doPostTurn() : GameState {
         val gs = GameState(logical.copy(characters = logical.characters.mapValues { ch ->
-            if (ch.value.health < CHAR_START_HP) {
+            val ord = logical.board.ordOfCoords(ch.value.x, ch.value.y)
+            if (logical.board.square[ord.idx].role == SquareRole.HEALING_BED) {
+                ch.value.copy(health = CHAR_START_HP)
+            } else if (ch.value.health < CHAR_START_HP) {
                 ch.value.copy(health = Math.min(ch.value.health + CHAR_START_HP / 3.01, CHAR_START_HP.toDouble()).toInt())
             } else {
                 ch.value
@@ -344,5 +478,36 @@ public class GameState(logical : GameStateData) {
         }))
         gs.display = display
         return gs
+    }
+
+    fun findAWayForward(team : Int) : Iterable<Pair<Character,Command>> {
+        val currentScore = logical.score(team)
+        val finder = TardisPathFinder(logical, currentScore + 50, object : ITardisPathFinderEstimate {
+            override fun estimateDistance(m: GameStateData): Double {
+                return 3000.0 - m.score(team)
+            }
+        })
+        val path = finder.compute(team, 5)
+        var takePath = ArrayList<Pair<Character,Command>>()
+        if (path != null) {
+            val exclude : MutableSet<String> = mutableSetOf()
+            for (i in 0..(path.size - 1)) {
+                if (exclude.contains(path[i].first.id)) {
+                    takePath.plusAssign(path.subList(0, i-1))
+                }
+            }
+        }
+        if (takePath.size > 0) {
+            return takePath
+        }
+        val excludes : MutableSet<String> = logical.characters.values.filter { ch -> ch.team == team }.map { ch -> ch.id }.toMutableSet()
+        for (ch in logical.characters.values) {
+            excludes.remove(ch.id)
+            val commandList = logical.neighbors(excludes).toList()
+            val choice = Math.floor(rand() * commandList.size)
+            takePath.add(commandList[choice])
+            excludes.add(ch.id)
+        }
+        return takePath
     }
 }
