@@ -648,5 +648,8 @@ public class GameState(logical : GameStateData) {
             excludes.add(ch.id)
             return takePath
         }
+
+        takePath.clear()
+        return takePath
     }
 }
