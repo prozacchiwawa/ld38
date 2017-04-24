@@ -599,15 +599,33 @@ public class GameState(logical : GameStateData) {
         }
         val charpositions = logical.characters.values.map { ch -> Pair(logical.board.ordOfCoords(ch.x, ch.y), ch) }.toMap()
 
-        if (recruitCount < logical.characters.size / 5) {
-            // Recruit
-            console.log("Try to recruit")
-            var closestchars = logical.characters.values.filter { och -> och.team != ch.team }.map { och ->
-                ToFight(ch, och, (Math.abs((ch.x - och.x).toDouble()) + Math.abs((ch.y - och.y).toDouble())).toInt())
-            }.sortedBy { e -> e.dist }.take(1)
-            for (cc in closestchars) {
-                console.log("${cc.ours.name} ${cc.ours.x},${cc.ours.y} trying to recruit ${cc.theirs.name} ${cc.theirs.x},${cc.theirs.y}")
-                val pf = pathfindWithDoors(cc.ours.x.toDouble(), cc.ours.y.toDouble(), cc.theirs.x.toDouble(), cc.theirs.y.toDouble(), true)
+        if (rand() % 3 == 0) {
+            if (recruitCount < logical.characters.size / 5) {
+                // Recruit
+                console.log("Try to recruit")
+                var closestchars = logical.characters.values.filter { och -> och.team != ch.team }.map { och ->
+                    ToFight(ch, och, (Math.abs((ch.x - och.x).toDouble()) + Math.abs((ch.y - och.y).toDouble())).toInt())
+                }.sortedBy { e -> e.dist }.take(1)
+                for (cc in closestchars) {
+                    console.log("${cc.ours.name} ${cc.ours.x},${cc.ours.y} trying to recruit ${cc.theirs.name} ${cc.theirs.x},${cc.theirs.y}")
+                    val pf = pathfindWithDoors(cc.ours.x.toDouble(), cc.ours.y.toDouble(), cc.theirs.x.toDouble(), cc.theirs.y.toDouble(), true)
+                    if (pf != null) {
+                        takePath.plusAssign(pf.flatMap { p ->
+                            if (p.open) {
+                                arrayOf(Pair(ch, Command(CommandType.OPEN, Pair(p.x, p.y))), Pair(ch, Command(CommandType.WAIT, Pair(p.x, p.y)))).asIterable()
+                            } else {
+                                arrayOf(Pair(ch.copy(x = p.x, y = p.y), Command(CommandType.WAIT, Pair(p.x, p.y)))).asIterable()
+                            }
+                        })
+                        return takePath
+                    }
+                }
+            }
+
+            if (controlledPoints.count() < 3) {
+                var coords = logical.board.coordsOfOrd(closestPoint.first)
+                console.log("${ch.name} trying to get control point ${closestPoint}")
+                var pf = pathfindWithDoors(ch.x.toDouble(), ch.y.toDouble(), coords.first.toDouble(), coords.second.toDouble(), true)
                 if (pf != null) {
                     takePath.plusAssign(pf.flatMap { p ->
                         if (p.open) {
@@ -618,33 +636,17 @@ public class GameState(logical : GameStateData) {
                     })
                     return takePath
                 }
+            } else if (controlledSpecials.count() < 2) {
             }
+        } else {
+            // Fallback
+            val excludes = logical.characters.keys.toMutableSet()
+            excludes.remove(ch.id)
+            val commandList = logical.neighbors(excludes).toList()
+            val choice = Math.floor(rand() * commandList.size)
+            takePath.add(commandList[choice])
+            excludes.add(ch.id)
+            return takePath
         }
-
-        if (controlledPoints.count() < 3) {
-            var coords = logical.board.coordsOfOrd(closestPoint.first)
-            console.log("${ch.name} trying to get control point ${closestPoint}")
-            var pf = pathfindWithDoors(ch.x.toDouble(), ch.y.toDouble(), coords.first.toDouble(), coords.second.toDouble(), true)
-            if (pf != null) {
-                takePath.plusAssign(pf.flatMap { p ->
-                    if (p.open) {
-                        arrayOf(Pair(ch, Command(CommandType.OPEN, Pair(p.x, p.y))), Pair(ch, Command(CommandType.WAIT, Pair(p.x, p.y)))).asIterable()
-                    } else {
-                        arrayOf(Pair(ch.copy(x = p.x, y = p.y), Command(CommandType.WAIT, Pair(p.x, p.y)))).asIterable()
-                    }
-                })
-                return takePath
-            }
-        } else if (controlledSpecials.count() < 2) {
-        }
-
-        // Fallback
-        val excludes = logical.characters.keys.toMutableSet()
-        excludes.remove(ch.id)
-        val commandList = logical.neighbors(excludes).toList()
-        val choice = Math.floor(rand() * commandList.size)
-        takePath.add(commandList[choice])
-        excludes.add(ch.id)
-        return takePath
     }
 }
