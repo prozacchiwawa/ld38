@@ -299,7 +299,11 @@ public class GameState(logical : GameStateData) {
                         display.characters.put(ch.id, cdisp.copy(lastDamage = damage, animation = CharacterAnim(cdisp.animation.dir, CharacterAnimType.FIGHT)))
                     }
                     val health = Math.max(ot.second.health - damage, 0.0).toInt()
-                    val gs = GameState(logical.copy(characters = logical.characters.plus(Pair(ot.first, ot.second.copy(health = health)))))
+                    var team = ot.second.team
+                    if (health == 0) {
+                        team = ch.team
+                    }
+                    val gs = GameState(logical.copy(characters = logical.characters.plus(Pair(ot.first, ot.second.copy(health = health, team = team)))))
                     gs.display = display
                     return gs
                 } else {
