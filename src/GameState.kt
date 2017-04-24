@@ -267,7 +267,12 @@ public class GameState(logical : GameStateData) {
     fun executeCommand(ch : Character, cmd : CommandType, x : Int, y : Int) : GameState {
         val cdisp = display.characters.get(ch.id)
         if (cdisp != null) {
-            val newChar = ch.copy(x = cdisp.dispx.toInt(), y = cdisp.dispy.toInt())
+            var health = ch.health
+            val ord = logical.board.ordOfCoords(cdisp.dispx.toInt(),cdisp.dispy.toInt())
+            if (logical.board.square[ord.idx].role == SquareRole.HEALING_BED) {
+                health = CHAR_START_HP
+            }
+            val newChar = ch.copy(x = cdisp.dispx.toInt(), y = cdisp.dispy.toInt(), health = health)
             var logical = logical.copy(characters = logical.characters.plus(Pair(ch.id, newChar)))
             if (cmd == CommandType.OPEN) {
                 val ord = logical.board.ordOfCoords(x, y)

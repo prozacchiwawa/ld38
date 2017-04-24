@@ -146,10 +146,11 @@ fun getUsableMap(state : GameState, ch : Character) : Map<CommandType,Set<Ord>> 
 
 fun menuForGameState(dim : BoardDim, state : GameState, ch : Character, dp : CharacterDisplay, usable : Map<CommandType,Set<Ord>>) : Menu<CommandType> {
     val near = Rect(dim.boardLeft + (dp.targetx * dim.tileSize), dim.boardTop + (dp.targety * dim.tileSize), dim.tileSize, dim.tileSize)
+    val health = ch.health
     val menuItems = arrayListOf(
             Pair(ch.name, CommandType.NOTHING),
             Pair(ch.charclass.toString(), CommandType.NOTHING),
-            Pair("HP ${ch.health}", CommandType.NOTHING),
+            Pair("HP ${health}", CommandType.NOTHING),
             Pair("----", CommandType.NOTHING)
     )
     for (cmd in arrayOf(

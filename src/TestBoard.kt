@@ -123,7 +123,7 @@ fun simpleBoardConvert(vararg s : String) : GameState {
             if (ch == '#') {
                 boardContents.add(Square(SquareRole.WALL, SquareAssoc.NOASSOC, 0))
             } else if (ch == '|') {
-                doors.put(Ord(idx), DoorState(j, i, 0 /*DOOR_START_HP*/, DoorType.INTERIOR, true, false, false, false))
+                doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, true, false, false, false))
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else if (ch == '-') {
                 doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, false, false, false, false))
@@ -197,11 +197,14 @@ fun simpleBoardConvert(vararg s : String) : GameState {
         characters.put(fullName, Character(fullName, fullName, j, i, charClass, -1, CHAR_START_HP))
     }
 
-    // Select a character randomly to be the player char's starting faction member
-    val whoAmI = chosenNames[Math.floor(rand() * chosenNames.size)]
-    val myChar = characters.get(whoAmI)
-    if (myChar != null) {
-        characters.put(whoAmI, myChar.copy(team = 0))
+    var assignedTeamLeads = 0
+    while (assignedTeamLeads < 4) {
+        // Select a character randomly to be the player char's starting faction member
+        val whoAmI = chosenNames[Math.floor(rand() * chosenNames.size)]
+        val myChar = characters.get(whoAmI)
+        if (myChar != null && myChar.team == -1) {
+            characters.put(whoAmI, myChar.copy(team = assignedTeamLeads++))
+        }
     }
 
     val board = GameBoard(xdim, ydim, boardContents.toTypedArray(), doors)
