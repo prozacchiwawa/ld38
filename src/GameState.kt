@@ -413,7 +413,7 @@ public class GameState(logical : GameStateData) {
         }
     }
 
-    fun pathfindWithDoors(fromX: Double, fromY: Double, toX: Double, toY: Double): ArrayList<PathCommand>? {
+    fun pathfindWithDoors(fromX: Double, fromY: Double, toX: Double, toY: Double, lastChance : Boolean): ArrayList<PathCommand>? {
         val atX: Int = Math.round(fromX)
         val atY: Int = Math.round(fromY)
         val wantX: Int = Math.round(toX)
@@ -439,6 +439,42 @@ public class GameState(logical : GameStateData) {
             addIfPassableWithOpen(first.me.first, first.me.second - 1, first, visited)
             addIfPassableWithOpen(first.me.first, first.me.second + 1, first, visited)
             wh = getCurTime()
+        }
+        // Try to find the nearest closed door and open it if nothing else
+        if (lastChance) {
+            // Exhaustively find a door
+            val visited : MutableSet<Pair<Int,Int>> = mutableSetOf()
+            val nextPoint : ArrayList<PathComponent> = arrayListOf()
+            val gonext =
+                    { pathcomp : PathComponent ->
+                        if (!visited.contains(pathcomp.me)) {
+                            visited.add(pathcomp.me)
+                            nextPoint.add(pathcomp)
+                        }
+                    }
+            gonext(PathComponent(null, false, Pair(atX, atY)))
+            while (!nextPoint.isEmpty()) {
+                val pt = nextPoint.first()
+                nextPoint.remove(pt)
+                var idx = (pt.me.second * logical.board.dimX) + pt.me.first
+                val sq = logical.board.square[idx]
+                val door = logical.board.doors.get(Ord(idx))
+                if (door != null) {
+                    var res = PathComponent(pt, true, Pair(door.x, door.y))
+                    val al: ArrayList<PathCommand> = arrayListOf()
+                    var f: PathComponent? = res
+                    while (f != null) {
+                        al.add(0, PathCommand(f.me.first, f.me.second, f.open))
+                        f = f.prev
+                    }
+                    return al
+                } else if (sq.role != SquareRole.WALL && sq.role != SquareRole.WORK_STATION) {
+                    gonext(PathComponent(pt, false, Pair(pt.me.first - 1, pt.me.second)))
+                    gonext(PathComponent(pt, false, Pair(pt.me.first + 1, pt.me.second)))
+                    gonext(PathComponent(pt, false, Pair(pt.me.first, pt.me.second - 1)))
+                    gonext(PathComponent(pt, false, Pair(pt.me.first, pt.me.second + 1)))
+                }
+            }
         }
         return null
     }
@@ -571,7 +607,7 @@ public class GameState(logical : GameStateData) {
             }.sortedBy { e -> e.dist }.take(1)
             for (cc in closestchars) {
                 console.log("${cc.ours.name} ${cc.ours.x},${cc.ours.y} trying to recruit ${cc.theirs.name} ${cc.theirs.x},${cc.theirs.y}")
-                val pf = pathfindWithDoors(cc.ours.x.toDouble(), cc.ours.y.toDouble(), cc.theirs.x.toDouble(), cc.theirs.y.toDouble())
+                val pf = pathfindWithDoors(cc.ours.x.toDouble(), cc.ours.y.toDouble(), cc.theirs.x.toDouble(), cc.theirs.y.toDouble(), true)
                 if (pf != null) {
                     takePath.plusAssign(pf.flatMap { p ->
                         if (p.open) {
@@ -583,10 +619,12 @@ public class GameState(logical : GameStateData) {
                     return takePath
                 }
             }
-        } else if (controlledPoints.count() < 3) {
+        }
+
+        if (controlledPoints.count() < 3) {
             var coords = logical.board.coordsOfOrd(closestPoint.first)
             console.log("${ch.name} trying to get control point ${closestPoint}")
-            var pf = pathfindWithDoors(ch.x.toDouble(), ch.y.toDouble(), coords.first.toDouble(), coords.second.toDouble())
+            var pf = pathfindWithDoors(ch.x.toDouble(), ch.y.toDouble(), coords.first.toDouble(), coords.second.toDouble(), true)
             if (pf != null) {
                 takePath.plusAssign(pf.flatMap { p ->
                     if (p.open) {
