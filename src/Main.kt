@@ -88,7 +88,7 @@ fun rungame() {
 
         kotlin.browser.window.addEventListener("resize", { evt -> onResize(evt); })
 
-        var running = testBoard
+        var running = testBoard()
         val ga = GameAnimator(YourTurnIntroMode(running))
 
         kotlin.browser.window.addEventListener("click", { evt : dynamic ->

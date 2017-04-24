@@ -12,6 +12,7 @@ import java.util.*
 val CHICKEN_SPRITE = 0
 val BED_SPRITE = 1
 val COMMAND_SPRITE = 2
+val CONSOLE = 14
 val DOOR_SPARKS = 15
 val DOOR_CLOSED_SPRITE = 20
 val DOOR_OPEN_SPRITE = 23
@@ -66,6 +67,17 @@ fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D,
     ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, dim.boardLeft + x * dim.tileSize, dim.boardTop + y * dim.tileSize, dim.tileSize, dim.tileSize)
 }
 
+fun placeSpriteBigger(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double, scale : Double) {
+    val imageSource : CanvasImageSource = assets.sprites.asDynamic()
+    var spx = spriteId % 20
+    var spy = spriteId / 20
+    val originX = dim.boardLeft + x * dim.tileSize + (dim.tileSize / 2.0)
+    val originY = dim.boardTop + y * dim.tileSize + (dim.tileSize / 2.0)
+    val drawAtX = originX - (scale * dim.tileSize / 2.0)
+    val drawAtY = originY - (scale * dim.tileSize / 2.0)
+    ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, drawAtX, drawAtY, dim.tileSize * scale, dim.tileSize * scale)
+}
+
 fun placeCharBigger(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, team : Int, spriteId : Int, x : Double, y : Double, scale : Double) {
     val idx = team * 10000 + spriteId
     val imageSource = assets.paletteSwaps[idx].asDynamic()
@@ -108,6 +120,25 @@ val roomColors =
                 Pair(SquareAssoc.MEDICAL, "rgba(65, 100, 160, 0.3)"),
                 Pair(SquareAssoc.SECURITY, "rgba(112, 68, 70, 0.3)")
         )
+
+val workStationSchemes = mapOf(
+        Pair(0, arrayOf()),
+        Pair(1, arrayOf()),
+        Pair(2, arrayOf()),
+        Pair(3, arrayOf(Pair(WALL_CORNER, 90.0))),
+        Pair(4, arrayOf()),
+        Pair(5, arrayOf(Pair(WALL_LONG, 0.0))),
+        Pair(6, arrayOf(Pair(WALL_CORNER, 180.0))),
+        Pair(7, arrayOf(Pair(WALL_LONG, 0.0), Pair(CONSOLE, 180.0))),
+        Pair(8, arrayOf()),
+        Pair(9, arrayOf(Pair(WALL_CORNER, 0.0))),
+        Pair(10, arrayOf(Pair(WALL_LONG, 90.0))),
+        Pair(11, arrayOf(Pair(WALL_LONG, 90.0), Pair(CONSOLE, 90.0))),
+        Pair(12, arrayOf(Pair(WALL_CORNER, -90.0))),
+        Pair(13, arrayOf(Pair(WALL_LONG, 0), Pair(CONSOLE, 0.0))),
+        Pair(14, arrayOf(Pair(WALL_LONG, 90.0), Pair(CONSOLE, -90.0))),
+        Pair(15, arrayOf(Pair(WALL_LONG, 0), Pair(WALL_LONG, 90.0)))
+)
 
 val wallSchemes = mapOf(
         Pair(0, arrayOf()),
@@ -164,6 +195,17 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
                 for (w in scheme) {
                     placeSpriteRotated(assets, dim, ctx, w.first, j.toDouble(), i.toDouble(), w.second)
                 }
+            } else if (board.square[ord.idx].role == SquareRole.WORK_STATION) {
+                var neighbors = board.getNeighborsWithDoors(j, i)
+                if (i == 0) {
+                    neighbors = neighbors.or(2)
+                } else if (i == board.dimY - 1) {
+                    neighbors = neighbors.or(8)
+                }
+                val scheme = workStationSchemes.get(neighbors)
+                for (w in scheme) {
+                    placeSpriteRotated(assets, dim, ctx, w.first, j.toDouble(), i.toDouble(), w.second)
+                }
             }
             val roomColor = roomColors.get(board.square[ord.idx].assoc)
             if (roomColor != null) {
@@ -172,7 +214,7 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
             }
             // Render objects
             if (board.square[ord.idx].role == SquareRole.HEALING_BED) {
-                placeSprite(assets, dim, ctx, BED_SPRITE, j.toDouble(), i.toDouble())
+                placeSpriteBigger(assets, dim, ctx, BED_SPRITE, j.toDouble(), i.toDouble(), 2.0)
             } else if (board.square[ord.idx].role == SquareRole.COMMAND_SEAT) {
                 placeSprite(assets, dim, ctx, COMMAND_SPRITE, j.toDouble(), i.toDouble())
             } else if (door != null) {

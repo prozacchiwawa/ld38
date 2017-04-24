@@ -119,7 +119,6 @@ fun simpleBoardConvert(vararg s : String) : GameState {
                 ch = st[j]
             }
             val idx = (i * xdim) + j
-            console.log("idx",idx)
             if (ch == '#') {
                 boardContents.add(Square(SquareRole.WALL, SquareAssoc.NOASSOC, 0))
             } else if (ch == '|') {
@@ -143,6 +142,16 @@ fun simpleBoardConvert(vararg s : String) : GameState {
             } else if (ch == 'S') {
                 commandChairs.put(SquareAssoc.SECURITY, Pair(j, i))
                 boardContents.add(Square(SquareRole.COMMAND_SEAT, SquareAssoc.SECURITY, 0))
+            } else if (ch == 'e') {
+                boardContents.add(Square(SquareRole.WORK_STATION, SquareAssoc.ENGINEERING, 0))
+            } else if (ch == 'b') {
+                boardContents.add(Square(SquareRole.WORK_STATION, SquareAssoc.BRIDGE, 0))
+            } else if (ch == 'm') {
+                boardContents.add(Square(SquareRole.WORK_STATION, SquareAssoc.MEDICAL, 0))
+            } else if (ch == 'l') {
+                boardContents.add(Square(SquareRole.WORK_STATION, SquareAssoc.LIFE_SUPPORT, 0))
+            } else if (ch == 's') {
+                boardContents.add(Square(SquareRole.WORK_STATION, SquareAssoc.SECURITY, 0))
             } else if (ch == '=') {
                 boardContents.add(Square(SquareRole.HEALING_BED, SquareAssoc.MEDICAL, 0))
             } else if (ch == 'X') {
@@ -171,7 +180,7 @@ fun simpleBoardConvert(vararg s : String) : GameState {
             var idx = (pt.second * xdim) + pt.first
             val sq = getSquare(xdim, boardContents, pt.first, pt.second)
             val door = doors.get(Ord(idx))
-            if (door == null && sq.role != SquareRole.WALL) {
+            if (door == null && sq.role != SquareRole.WALL && sq.role != SquareRole.WORK_STATION) {
                 boardContents[idx] = boardContents[idx].copy(assoc = coord.key)
                 gonext(Pair(pt.first - 1, pt.second))
                 gonext(Pair(pt.first + 1, pt.second))
@@ -211,9 +220,9 @@ fun simpleBoardConvert(vararg s : String) : GameState {
     return GameState(GameStateData(characters, board))
 }
 
-var testBoard =
-    simpleBoardConvert(
-            "####################################",
+fun testBoard() : GameState {
+    return simpleBoardConvert(
+            "######l#######s###############e#####",
             "#####  X # X    S#     E   X       #",
             "#####L   #    X  #     X           #",
             "#######-########-#   X        X    #",
@@ -223,5 +232,6 @@ var testBoard =
             "#=    X        ##############-######",
             "#=      X      #    X   X      X   #",
             "#  X   M       #           B       #",
-            "####################################"
-            )
+            "###########m##################b#####"
+    )
+}
