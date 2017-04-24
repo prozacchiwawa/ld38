@@ -55,7 +55,7 @@ public data class Character(
         var moves = 3
         if (health < CHAR_START_HP * 0.3) {
             moves = 1
-        } else if (health < CHAR_START_HP) {
+        } else if (health < CHAR_START_HP * 0.75) {
             moves = 2
         }
         return moves
@@ -130,13 +130,28 @@ public data class GameBoard(
     }
 }
 
+public data class ClassStats(
+        val attack : Double,
+        val defense : Double
+) {
+}
+
+val classStats = mapOf(
+        Pair(CharClass.DOCTOR, ClassStats(1.0, 1.0)),
+        Pair(CharClass.ENGINEER, ClassStats(3.0, 2.0)),
+        Pair(CharClass.LIFESUPPORT, ClassStats(2.0, 2.0)),
+        Pair(CharClass.SECURITY, ClassStats(3.0, 3.0)),
+        Pair(CharClass.OFFICER, ClassStats(2.0, 2.0))
+)
+
 public data class CharacterDisplay(
         val dispx : Double,
         val dispy : Double,
         val targetx : Double,
         val targety : Double,
         val animation : CharacterAnim,
-        val animstart : Double
+        val animstart : Double,
+        val lastDamage : Double
         ) {
 }
 
@@ -180,6 +195,7 @@ public class GameDisplay(logical: GameStateData) {
                             kv.value.x.toDouble(),
                             kv.value.y.toDouble(),
                             CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE),
+                            0.0,
                             0.0
                     )
         }
@@ -252,7 +268,7 @@ public class GameState(logical : GameStateData) {
         val cdisp = display.characters.get(ch.id)
         if (cdisp != null) {
             val newChar = ch.copy(x = cdisp.dispx.toInt(), y = cdisp.dispy.toInt())
-            val logical = logical.copy(characters = logical.characters.plus(Pair(ch.id, newChar)))
+            var logical = logical.copy(characters = logical.characters.plus(Pair(ch.id, newChar)))
             if (cmd == CommandType.OPEN) {
                 val ord = logical.board.ordOfCoords(x, y)
                 val door = logical.board.doors.get(ord)
@@ -266,6 +282,42 @@ public class GameState(logical : GameStateData) {
                 if (door != null) {
                     val newDoor = door.copy(open = false)
                     return GameState(logical.copy(board = logical.board.copy(doors = logical.board.doors.plus(Pair(ord, newDoor)))))
+                }
+            } else if (cmd == CommandType.ATTACK) {
+                val stats = classStats.getOrElse(ch.charclass, { ClassStats(2.0, 2.0) })
+                val ot = logical.characters.filter { kv -> kv.value.x == x && kv.value.y == y }.toList().first()
+                if (ot != null) {
+                    val targetStats = classStats.getOrElse(ot.second.charclass, { ClassStats(2.0, 2.0) })
+                    val damage = (rand() * 5.0) + (rand() * 5.0 * (stats.attack / targetStats.defense))
+                    val cdisp = display.characters.get(ch.id)
+                    if (cdisp != null) {
+                        display.characters.put(ch.id, cdisp.copy(lastDamage = damage, animation = CharacterAnim(cdisp.animation.dir, CharacterAnimType.FIGHT)))
+                    }
+                    val health = Math.max(ot.second.health - damage, 0.0).toInt()
+                    val gs = GameState(logical.copy(characters = logical.characters.plus(Pair(ot.first, ot.second.copy(health = health)))))
+                    gs.display = display
+                    return gs
+                } else {
+                    val ord = logical.board.ordOfCoords(x, y)
+                    val door = logical.board.doors.get(ord)
+                    if (door != null) {
+                        val damage = (rand() * 20.0)
+                        val cdisp = display.characters.get(ch.id)
+                        if (cdisp != null) {
+                            display.characters.put(ch.id, cdisp.copy(lastDamage = damage, animation = CharacterAnim(cdisp.animation.dir, CharacterAnimType.FIGHT)))
+                        }
+                        val health = Math.max(door.hp - damage, 0.0).toInt()
+                        var open = door.open
+                        var locked = door.locked
+                        if (health == 0) {
+                            open = true
+                            locked = false
+                        }
+                        val newDoor = door.copy(hp = health, open = open, locked = locked)
+                        val gs = GameState(logical.copy(board = logical.board.copy(doors = logical.board.doors.plus(Pair(ord, door.copy(hp = health))))))
+                        gs.display = display
+                        return gs
+                    }
                 }
             }
             return GameState(logical)

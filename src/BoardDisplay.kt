@@ -7,6 +7,7 @@ package ldjam.prozacchiwawa
 import org.w3c.dom.CanvasImageSource
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
+import java.util.*
 
 val CHICKEN_SPRITE = 0
 val BED_SPRITE = 1
@@ -21,37 +22,40 @@ val WALL_LONG = 25
 
 val TO_RADIANS = Math.PI/180
 
-data class AnimationDesc(val start : Int, val end : Int, val time : Double) { }
+data class AnimationDesc(val sequence: Iterable<Int>, val time : Double) { }
 
 data class BoardDim(val boardLeft : Double, val boardTop : Double, val boardWidth : Double, val boardHeight : Double, val tileSize : Double) {
 }
 
+fun intSeqBack(a : Int, b : Int) : Iterable<Int> {
+    var al = arrayListOf(a)
+    for (i in (a+1)..(b-1)) {
+        al.add(i)
+    }
+    for (i in 0..(b - a - 2)) {
+        al.add(b - i - 2)
+    }
+    return al
+}
+
 val charAnimations =
         mapOf(
-                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE), AnimationDesc(40, 42, 1.0)),
-                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.IDLE), AnimationDesc(50, 52, 1.0)),
-                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.IDLE), AnimationDesc(60, 62, 1.0)),
-                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.IDLE), AnimationDesc(70, 72, 1.0)),
-                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.WALK), AnimationDesc(40, 50, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.WALK), AnimationDesc(50, 60, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.WALK), AnimationDesc(60, 70, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.WALK), AnimationDesc(70, 80, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.CRAWL), AnimationDesc(40, 50, 0.7)),
-                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.CRAWL), AnimationDesc(50, 60, 0.7)),
-                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.CRAWL), AnimationDesc(60, 70, 0.7)),
-                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.CRAWL), AnimationDesc(70, 80, 0.7)),
-                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE), AnimationDesc(40, 42, 2.0)),
-                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.IDLE), AnimationDesc(50, 52, 2.0)),
-                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.IDLE), AnimationDesc(60, 62, 2.0)),
-                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.IDLE), AnimationDesc(70, 72, 2.0)),
-                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.FIGHT), AnimationDesc(80, 90, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.FIGHT), AnimationDesc(90, 100, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.FIGHT), AnimationDesc(100, 110, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.FIGHT), AnimationDesc(110,120, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.FIGHT), AnimationDesc(81, 83, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.FIGHT), AnimationDesc(91, 93, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.FIGHT), AnimationDesc(101, 103, 0.3)),
-                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.FIGHT), AnimationDesc(111, 113, 0.3))
+                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE), AnimationDesc(intSeqBack(80, 82), 1.0)),
+                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.IDLE), AnimationDesc(intSeqBack(90, 92), 1.0)),
+                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.IDLE), AnimationDesc(intSeqBack(100, 102), 1.0)),
+                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.IDLE), AnimationDesc(intSeqBack(110, 112), 1.0)),
+                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.WALK), AnimationDesc(40..49, 0.5)),
+                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.WALK), AnimationDesc(50..59, 0.5)),
+                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.WALK), AnimationDesc(60..69, 0.5)),
+                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.WALK), AnimationDesc(70..79, 0.5)),
+                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.CRAWL), AnimationDesc(40..49, 0.7)),
+                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.CRAWL), AnimationDesc(50..59, 0.7)),
+                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.CRAWL), AnimationDesc(60..69, 0.7)),
+                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.CRAWL), AnimationDesc(70..79, 0.7)),
+                Pair(CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.FIGHT), AnimationDesc(80..89, 1.0)),
+                Pair(CharacterAnim(CharacterDirection.WEST, CharacterAnimType.FIGHT), AnimationDesc(90..99, 1.0)),
+                Pair(CharacterAnim(CharacterDirection.EAST, CharacterAnimType.FIGHT), AnimationDesc(100..109, 1.0)),
+                Pair(CharacterAnim(CharacterDirection.NORTH, CharacterAnimType.FIGHT), AnimationDesc(110..119, 1.0))
         )
 
 fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double) {
@@ -195,8 +199,10 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
             val elapsed = lastTime - disp.value.animstart
             val whichCycle = Math.floor(elapsed / animStart.time)
             val frameFrac = (elapsed / animStart.time) - whichCycle
-            val whichFrame = Math.floor(frameFrac * (animStart.end - animStart.start))
-            placeCharBigger(assets, dim, ctx, ch.team, animStart.start + whichFrame, disp.value.dispx, disp.value.dispy, 6.0)
+            val aframes = ArrayList<Int>()
+            aframes.plusAssign(animStart.sequence)
+            val whichFrame = aframes[Math.floor(frameFrac * aframes.size)]
+            placeCharBigger(assets, dim, ctx, ch.team, whichFrame, disp.value.dispx, disp.value.dispy, 1.5)
         } else {
             placeSprite(assets, dim, ctx, CHICKEN_SPRITE, disp.value.dispx, disp.value.dispy)
         }

@@ -126,7 +126,7 @@ fun getUsableMap(state : GameState, ch : Character) : Map<CommandType,Set<Ord>> 
         // Doors
         for (d in state.logical.board.doors) {
             if (Math.abs(d.value.x - cdisp.targetx) + Math.abs(d.value.y - cdisp.targety) == 1.0) {
-                if (d.value.hp < 1) {
+                if (d.value.hp < 1 || d.value.airlock) {
                     continue
                 } else if (d.value.locked) {
                     attacks.add(state.logical.board.ordOfCoords(d.value.x, d.value.y))
@@ -147,7 +147,10 @@ fun getUsableMap(state : GameState, ch : Character) : Map<CommandType,Set<Ord>> 
 fun menuForGameState(dim : BoardDim, state : GameState, ch : Character, dp : CharacterDisplay, usable : Map<CommandType,Set<Ord>>) : Menu<CommandType> {
     val near = Rect(dim.boardLeft + (dp.targetx * dim.tileSize), dim.boardTop + (dp.targety * dim.tileSize), dim.tileSize, dim.tileSize)
     val menuItems = arrayListOf(
-            Pair(ch.name, CommandType.NOTHING)
+            Pair(ch.name, CommandType.NOTHING),
+            Pair(ch.charclass.toString(), CommandType.NOTHING),
+            Pair("HP ${ch.health}", CommandType.NOTHING),
+            Pair("----", CommandType.NOTHING)
     )
     for (cmd in arrayOf(
             Pair("Wait", CommandType.WAIT),
@@ -324,11 +327,49 @@ data class PlacementSelectionMode(val state : GameState, val ch : Character, val
         val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
         val ord = board.ordOfCoords(xTile, yTile)
         if (usable.getOrElse(cmd, { setOf() }).contains(ord)) {
-            val newState = state.executeCommand(ch, cmd, xTile, yTile)
-            return Pair(newState, PickingCharacterMode(newState, hasTurn.minus(ch.id)))
+            if (cmd == CommandType.ATTACK) {
+                val newState = state.executeCommand(ch, cmd, xTile, yTile)
+                return Pair(newState, AttackMode(newState, ch, cmd, usable, xTile, yTile, hasTurn.minus(ch.id)))
+            } else {
+                val newState = state.executeCommand(ch, cmd, xTile, yTile)
+                return Pair(newState, PickingCharacterMode(newState, hasTurn.minus(ch.id)))
+            }
         } else {
             return Pair(state, PickingCharacterMode(state, hasTurn))
         }
+    }
+}
+
+data class AttackMode(val state : GameState, val ch : Character, val cmd : CommandType, val usable : Map<CommandType, Set<Ord>>, val x : Int, val y : Int, val hasTurn : Set<String>) : IGameSubmode {
+    var elapsed = 0.0
+
+    override fun finish() : Boolean { return hasTurn.count() == 0 && elapsed > 1.0 }
+    override fun update(t : Double) : Pair<GameState, IGameSubmode> {
+        elapsed += t
+        if (elapsed > 1.0) {
+            val cdisp = state.display.characters.get(ch.id)
+            if (cdisp != null) {
+                state.display.characters.put(ch.id, cdisp.copy(animation = CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE)))
+            }
+            return Pair(state, PickingCharacterMode(state, hasTurn))
+        } else {
+            return Pair(state, this)
+        }
+    }
+    override fun underlay(dim : BoardDim, ctx : CanvasRenderingContext2D) {
+    }
+    override fun overlay(ctx : CanvasRenderingContext2D) {
+        val cdisp = state.display.characters.get(ch.id)
+        if (cdisp != null) {
+            val dim = getBoardSize(screenX, screenY, state.logical.board)
+            val atX = dim.tileSize * (x + 0.75)
+            val atY = dim.tileSize * (y + 0.5 - elapsed)
+            ctx.fillStyle = "white"
+            ctx.fillText("${cdisp.lastDamage.toInt()}", dim.boardLeft + atX, dim.boardTop + atY)
+        }
+    }
+    override fun click(x : Double, y : Double) : Pair<GameState,IGameSubmode> {
+        return Pair(state, this)
     }
 }
 
