@@ -333,4 +333,16 @@ public class GameState(logical : GameStateData) {
         }
         return this
     }
+
+    fun doPostTurn() : GameState {
+        val gs = GameState(logical.copy(characters = logical.characters.mapValues { ch ->
+            if (ch.value.health < CHAR_START_HP) {
+                ch.value.copy(health = Math.min(ch.value.health + CHAR_START_HP / 3.01, CHAR_START_HP.toDouble()).toInt())
+            } else {
+                ch.value
+            }
+        }))
+        gs.display = display
+        return gs
+    }
 }

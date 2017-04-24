@@ -13,7 +13,7 @@ class ComputerTurnMode(val turn : Int, var state : GameState) : IGameMode {
         elapsed += t
         if (elapsed > 5.0) {
             if (turn == 3) {
-                return YourTurnIntroMode(state)
+                return YourTurnIntroMode(state.doPostTurn())
             } else {
                 return ComputerTurnMode(turn + 1, state)
             }
