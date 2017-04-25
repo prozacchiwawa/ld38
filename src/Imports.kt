@@ -8,6 +8,8 @@ fun getCurTime() : Double {
     return js("(new Date().getTime()) / 1000.0")
 }
 
+var random = { js("Math.random()") }
+
 fun rand() : Double {
-    return js("Math.random()")
+    return random()
 }

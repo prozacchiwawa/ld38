@@ -97,7 +97,7 @@ fun rollName(square : Square) : String {
     return rank + " " + name
 }
 
-fun simpleBoardConvert(vararg s : String) : GameState {
+fun simpleBoardConvert(s : Array<String>) : GameState {
     val ydim = s.size
     var xdim = 0
     for (i in 0..(ydim - 1)) {
@@ -221,16 +221,18 @@ fun simpleBoardConvert(vararg s : String) : GameState {
 
 fun testBoard() : GameState {
     return simpleBoardConvert(
-            "######l#######s###############e#####",
-            "#####  X # X    S#     E   X       #",
-            "#####L   #    X  #     X           #",
-            "#######-########-#   X        X    #",
-            "##               #                 #",
-            "########-####### #############-#####",
-            "#=  X       X  |                 ###",
-            "#=    X        ##############-######",
-            "#=      X      #    X   X      X   #",
-            "#  X   M       #           B       #",
-            "###########m##################b#####"
+            arrayOf(
+                "######l#######s###############e#####",
+                "#####  X # X    S#     E   X       #",
+                "#####L   #    X  #     X           #",
+                "#######-########-#   X        X    #",
+                "##               #                 #",
+                "########-####### #############-#####",
+                "#=  X       X  |                 ###",
+                "#=    X        ##############-######",
+                "#=      X      #    X   X      X   #",
+                "#  X   M       #           B       #",
+                "###########m##################b#####"
+            )
     )
 }

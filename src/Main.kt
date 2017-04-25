@@ -106,10 +106,6 @@ fun isNode() : Boolean {
     return js("typeof window === 'undefined'")
 }
 
-fun export(e : dynamic) {
-    js("module.exports = e")
-}
-
 fun main(args: Array<String>) {
     if (!isNode()) {
         screenX = kotlin.browser.window.innerWidth.toInt()
@@ -119,33 +115,7 @@ fun main(args: Array<String>) {
         assets.addLoadListener { rungame() }
         assets.start()
     } else {
-        val exports : dynamic = js("new Object()")
-        val boardCvt : (dynamic) -> GameBoard = { desc : dynamic ->
-            val dimX : Int = desc.dimX
-            val dimY : Int = desc.dimY
-            val squares : Array<Square> = Array(dimX * dimY, { i ->
-                Square(SquareRole.valueOf(desc.role), SquareAssoc.valueOf(desc.assoc), desc.team)
-            })
-            val doors : MutableMap<Ord, DoorState> = mutableMapOf()
-            for (i in 0..(desc.doors.length - 1)) {
-                val doorDesc = desc.doors[i]
-                val door = DoorState(doorDesc.x, doorDesc.y, doorDesc.hp, DoorType.valueOf(doorDesc.type), doorDesc.vertical, doorDesc.open, doorDesc.locked, doorDesc.airlock)
-                val ord = Ord(door.x + (door.y * dimX))
-                doors[ord] = door
-            }
-            GameBoard(dimX, dimY, squares, doors)
-        }
-        val gameStateCvt : (dynamic, dynamic) -> GameState = { chars : dynamic,board : dynamic ->
-            var chlen = chars.length
-            val charMap : MutableMap<String, Character> = mutableMapOf()
-            for (i in 0..(chlen-1)) {
-                val chent = chars[i]
-                val ch = Character(chent.id, chent.name, chent.x, chent.y, CharClass.valueOf(chent.charclass), chent.team, chent.health, arrayListOf())
-                charMap[ch.id] = ch
-            }
-            GameState(GameStateData(charMap, boardCvt(board)))
-        }
-        exports.GameState = gameStateCvt
+        val exports = createExports()
         export(exports)
     }
 }
