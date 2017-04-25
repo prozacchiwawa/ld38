@@ -5,7 +5,9 @@
 package ldjam.prozacchiwawa
 
 import org.w3c.dom.CanvasRenderingContext2D
+import org.w3c.dom.Element
 import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.HTMLDivElement
 import java.util.*
 
 val TILE_WALK_TIME = 0.3
@@ -17,8 +19,8 @@ fun doError(container : org.w3c.dom.Element, content : org.w3c.dom.Element, t : 
     content.innerHTML = t;
 }
 
-var screenX : Int = kotlin.browser.window.innerWidth.toInt()
-var screenY : Int = kotlin.browser.window.innerHeight.toInt()
+var screenX : Int = 0
+var screenY : Int = 0
 
 fun getRenderContext() : org.w3c.dom.CanvasRenderingContext2D? {
     val canvasElt = kotlin.browser.document.getElementById("main")
@@ -38,17 +40,18 @@ fun getRenderContext() : org.w3c.dom.CanvasRenderingContext2D? {
     return context
 }
 
-val rawWindow : dynamic = kotlin.browser.window
-val error = kotlin.browser.window.document.getElementById("error")
-val errorContent = kotlin.browser.window.document.getElementById("error-content")
+var error : Element? = null
+var errorContent : Element? = null
 var assets = Assets()
 
 fun doWithException(doit : () -> Unit) {
+    val err = error
+    val errc = errorContent
     try {
         doit()
     } catch (e : Exception) {
-        if (error != null && errorContent != null) {
-            doError(error, errorContent, "${e}");
+        if (err != null && errc != null) {
+            doError(err, errc, "${e}");
         }
     }
 }
@@ -99,7 +102,50 @@ fun rungame() {
     }
 }
 
+fun isNode() : Boolean {
+    return js("typeof window === 'undefined'")
+}
+
+fun export(e : dynamic) {
+    js("module.exports = e")
+}
+
 fun main(args: Array<String>) {
-    assets.addLoadListener { rungame() }
-    assets.start()
+    if (!isNode()) {
+        screenX = kotlin.browser.window.innerWidth.toInt()
+        screenY = kotlin.browser.window.innerHeight.toInt()
+        error = kotlin.browser.window.document.getElementById("error")
+        errorContent = kotlin.browser.window.document.getElementById("error-content")
+        assets.addLoadListener { rungame() }
+        assets.start()
+    } else {
+        val exports : dynamic = js("new Object()")
+        val boardCvt : (dynamic) -> GameBoard = { desc : dynamic ->
+            val dimX : Int = desc.dimX
+            val dimY : Int = desc.dimY
+            val squares : Array<Square> = Array(dimX * dimY, { i ->
+                Square(SquareRole.valueOf(desc.role), SquareAssoc.valueOf(desc.assoc), desc.team)
+            })
+            val doors : MutableMap<Ord, DoorState> = mutableMapOf()
+            for (i in 0..(desc.doors.length - 1)) {
+                val doorDesc = desc.doors[i]
+                val door = DoorState(doorDesc.x, doorDesc.y, doorDesc.hp, DoorType.valueOf(doorDesc.type), doorDesc.vertical, doorDesc.open, doorDesc.locked, doorDesc.airlock)
+                val ord = Ord(door.x + (door.y * dimX))
+                doors[ord] = door
+            }
+            GameBoard(dimX, dimY, squares, doors)
+        }
+        val gameStateCvt : (dynamic, dynamic) -> GameState = { chars : dynamic,board : dynamic ->
+            var chlen = chars.length
+            val charMap : MutableMap<String, Character> = mutableMapOf()
+            for (i in 0..(chlen-1)) {
+                val chent = chars[i]
+                val ch = Character(chent.id, chent.name, chent.x, chent.y, CharClass.valueOf(chent.charclass), chent.team, chent.health, arrayListOf())
+                charMap[ch.id] = ch
+            }
+            GameState(GameStateData(charMap, boardCvt(board)))
+        }
+        exports.GameState = gameStateCvt
+        export(exports)
+    }
 }

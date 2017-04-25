@@ -610,6 +610,9 @@ public class GameState(logical : GameStateData) {
                     console.log("${cc.ours.name} ${cc.ours.x},${cc.ours.y} trying to recruit ${cc.theirs.name} ${cc.theirs.x},${cc.theirs.y}")
                     val pf = pathfindWithDoors(cc.ours.x.toDouble(), cc.ours.y.toDouble(), cc.theirs.x.toDouble(), cc.theirs.y.toDouble(), true)
                     if (pf != null) {
+
+
+
                         takePath.plusAssign(pf.flatMap { p ->
                             if (p.open) {
                                 arrayOf(Pair(ch, Command(CommandType.OPEN, Pair(p.x, p.y))), Pair(ch, Command(CommandType.WAIT, Pair(p.x, p.y)))).asIterable()
