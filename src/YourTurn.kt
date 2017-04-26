@@ -5,9 +5,10 @@
 package ldjam.prozacchiwawa
 
 import org.w3c.dom.CanvasRenderingContext2D
+import org.w3c.dom.HTMLCanvasElement
 import java.util.*
 
-data class ClickAnim(val x : Double, val y : Double, val start : Double, val at : Double) {
+data class ClickAnim(val x : Double, val y : Double, val start : Double, val at : Double, val color : RGBA) {
     fun update(t : Double) : ClickAnim? {
         val newTime = this.at + t
         if (newTime > 0.3) {
@@ -21,41 +22,11 @@ data class ClickAnim(val x : Double, val y : Double, val start : Double, val at 
         val rad = 90.0 * at
         val fade = Math.max(0.0, 2.0 * (0.3 - at))
         val grd = ctx.createRadialGradient(x, y, 0.0, x, y, rad)
-        grd.addColorStop(0.0, "rgba(255,255,0,0.0)")
-        grd.addColorStop(1.0, "rgba(255,255,0,${fade})")
+        grd.addColorStop(0.0, "rgba(${color.r},${color.g},${color.b},0.0)")
+        grd.addColorStop(1.0, "rgba(${color.r},${color.g},${color.b},${fade})")
         ctx.fillStyle = grd
         ctx.fillRect(x - rad, y - rad, 2.0 * rad, 2.0 * rad)
     }
-}
-
-interface IGameSubmode {
-    abstract fun finish() : Boolean
-    abstract fun update(t : Double) : Pair<GameState,IGameSubmode>
-    abstract fun overlay(ctx : CanvasRenderingContext2D)
-    abstract fun underlay(dim : BoardDim, ctx : CanvasRenderingContext2D)
-    abstract fun click(x : Double, y : Double) : Pair<GameState,IGameSubmode>
-}
-
-fun menuForGameState(dim : BoardDim, state : GameState, ch : Character, dp : CharacterDisplay, usable : Map<CommandType,Set<Ord>>) : Menu<CommandType?> {
-    val near = Rect(dim.boardLeft + (dp.targetx * dim.tileSize), dim.boardTop + (dp.targety * dim.tileSize), dim.tileSize, dim.tileSize)
-    val health = ch.health
-    val menuItems : ArrayList<Pair<String,CommandType?>> = arrayListOf(
-            Pair(ch.name, null),
-            Pair(ch.charclass.toString(), null),
-            Pair("HP ${health}", null),
-            Pair("----", null)
-    )
-    for (cmd in arrayOf(
-            Pair("Attack", CommandType.ATTACK),
-            Pair("Open", CommandType.OPEN),
-            Pair("Close", CommandType.CLOSE),
-            Pair("Room", CommandType.SUPER),
-            Pair("Special", CommandType.SPECIAL))) {
-        if (usable.getOrElse(cmd.second, { setOf() }).count() > 0) {
-            menuItems.add(cmd)
-        }
-    }
-    return Menu(menuItems, 20.0, 5.0, near)
 }
 
 class SpriteAnim(val frames : Iterable<Int>, val duration : Double, val x : Int, val y : Int) {
@@ -81,10 +52,15 @@ class SpriteAnim(val frames : Iterable<Int>, val duration : Double, val x : Int,
 }
 
 class YourTurnMode(var state : GameState) : IGameMode {
-    var endTurn : Menu<Boolean>? = null
     var elapsed = 0.0
     var clickAnims : List<ClickAnim> = listOf()
     var doorSparks : List<SpriteAnim> = listOf()
+    var charScrollAt = 0.0
+    var boardX = 0.0
+    var boardY = 0.0
+    var boardScale = 0.0
+    var compact = false
+    var background = makeBaseBoard(state, 1.0, assets)
 
     fun updateAnims(t : Double) {
         val empty : List<ClickAnim> = emptyList()
@@ -104,6 +80,25 @@ class YourTurnMode(var state : GameState) : IGameMode {
     }
 
     override fun runMode(t : Double) : IGameMode {
+        if (boardScale == 0.0) {
+            var xScale = screenX / (state.logical.board.dimX * TILESIZE)
+            var yScale = screenY / (state.logical.board.dimY * TILESIZE)
+            boardScale = Math.max(xScale, yScale)
+        }
+
+        var width = state.logical.board.dimX * TILESIZE * boardScale
+        var height = state.logical.board.dimY * TILESIZE * boardScale
+        val needWidth = screenX / 2.0
+        val needHeight = screenY / 2.0
+        if (width < needWidth) {
+            boardScale = needWidth / width
+        }
+        width = state.logical.board.dimX * TILESIZE * boardScale
+        height = state.logical.board.dimY * TILESIZE * boardScale
+        if (height < needHeight) {
+            boardScale = needHeight / height
+        }
+
         elapsed += t
         updateAnims(t)
 
@@ -127,27 +122,69 @@ class YourTurnMode(var state : GameState) : IGameMode {
         return state
     }
 
-    override fun click(x : Double, y : Double) {
+    fun getBoardDim(boardX : Double, boardY : Double, boardScale : Double) : BoardDim {
         val board = state.logical.board
-        val dim = getBoardSize(screenX, screenY, board)
-        val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
-        val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
-        console.log("mouse click ",xTile,yTile)
-        clickAnims = clickAnims.plus(ClickAnim(x, y, elapsed, 0.0))
+        val renderWidth = board.dimX * TILESIZE * boardScale
+        val renderHeight = board.dimY * TILESIZE * boardScale
+        val left = (screenX / 2.0) + boardX - (renderWidth / 2.0)
+        val top = (screenY / 2.0) + boardY - (renderHeight / 2.0)
+        return BoardDim(left, top, renderWidth, renderHeight, TILESIZE * boardScale)
     }
 
-    override fun overlay(ctx : CanvasRenderingContext2D) {
+    fun getMouseTile(x : Double, y : Double) : Pair<Int,Int> {
+        val dim = getBoardDim(boardX, boardY, boardScale)
+        val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
+        val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
+        return Pair(xTile, yTile)
+    }
+
+    override fun click(x : Double, y : Double) {
+        val mouse = getMouseTile(x, y)
+        console.log("mouse click", mouse)
+        clickAnims = clickAnims.plus(ClickAnim(x, y, elapsed, 0.0, RGBA(255.0, 255.0, 0.0, 0.0)))
+    }
+
+    override fun drag(x : Double, y : Double, u : Double, v : Double) {
+        var boardX = boardX + x - u
+        var boardY = boardY + y - v
+        val width = boardScale * state.logical.board.dimX * TILESIZE
+        val height = boardScale * state.logical.board.dimY * TILESIZE
+        val dim = getBoardDim(boardX, boardY, boardScale)
+        console.log("${dim}")
+        if (dim.boardLeft > (screenX / 4.0)) {
+            boardX -= dim.boardLeft - (screenX / 4.0)
+        }
+        if ((dim.boardLeft + dim.boardWidth) < (3.0 * screenX / 4.0)) {
+            boardX -= (dim.boardLeft + dim.boardWidth) - (3.0 * screenX / 4.0)
+        }
+        if (dim.boardTop > (screenY / 4.0)) {
+            boardY -= dim.boardTop - (screenY / 4.0)
+        }
+        if ((dim.boardTop + dim.boardHeight) < (3.0 * screenY / 4.0)) {
+            boardY -= (dim.boardTop + dim.boardHeight) - (3.0 * screenY / 4.0)
+        }
+        this.boardX = boardX
+        this.boardY = boardY
+    }
+
+    override fun render(ctx : CanvasRenderingContext2D) {
         val board = state.logical.board
-        val dim = getBoardSize(screenX, screenY, board)
+        val dim = getBoardDim(boardX, boardY, boardScale)
+
+        drawBoard(ctx, state, background, assets, boardX, boardY, boardScale)
 
         // End turn
         val fontHeight = 1.2 * dim.tileSize
         val x = dim.boardLeft + dim.boardWidth
         val y = dim.boardTop + dim.boardHeight
-        val et = Menu<Boolean>(arrayListOf(Pair("End Turn", true)), fontHeight, 0.0, Rect(screenX.toDouble(),screenY.toDouble(),0.0,0.0))
-        endTurn = et
-        if (et != null) {
-            et.render(ctx)
+
+        // Draw character descriptions
+        val characters = state.logical.characters.values.sortedBy { ch : Character ->
+            if (ch.team < 0) {
+                ch.team + 1000
+            } else {
+                ch.team
+            }
         }
 
         // Fluff
@@ -160,6 +197,6 @@ class YourTurnMode(var state : GameState) : IGameMode {
         }
     }
 
-    override fun underlay(dim : BoardDim, ctx : CanvasRenderingContext2D) {
+    fun underlay(dim : BoardDim, ctx : CanvasRenderingContext2D) {
     }
 }

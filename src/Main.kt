@@ -57,6 +57,9 @@ fun doWithException(doit : () -> Unit) {
 }
 
 class GameAnimator(var mode : IGameMode) {
+    var mouse : Pair<Double,Double>? = null
+    var drag = false
+
     fun getMode() : IGameMode { return mode }
     fun runFrame() {
         doWithException {
@@ -67,8 +70,7 @@ class GameAnimator(var mode : IGameMode) {
             kotlin.browser.window.requestAnimationFrame { runFrame() }
             val context = getRenderContext()
             if (context != null) {
-                drawBoard(screenX, screenY, null, context, mode.getState(), assets, { dim -> mode.underlay(dim, context) })
-                mode.overlay(context)
+                mode.render(context)
             } else {
                 throw Exception("No canvas named main")
             }
@@ -76,6 +78,38 @@ class GameAnimator(var mode : IGameMode) {
     }
 
     fun start() {
+        kotlin.browser.window.addEventListener("mousedown", { evt : dynamic ->
+            drag = false
+            mouse = Pair(evt.clientX, evt.clientY)
+        })
+
+        kotlin.browser.window.addEventListener("mouseup", { evt : dynamic ->
+            val ms = mouse
+            if (!drag) {
+                mode.click(evt.clientX, evt.clientY)
+            }
+            drag = false
+            mouse = null
+        })
+
+        kotlin.browser.window.addEventListener("mousemove", { evt : dynamic ->
+            doWithException {
+                val ms = mouse
+                if (ms != null) {
+                    if (drag) {
+                        mode.drag(evt.clientX, evt.clientY, ms.first, ms.second)
+                        mouse = Pair(evt.clientX, evt.clientY)
+                    } else {
+                        val dist = distance(evt.clientX, evt.clientY, ms.first, ms.second)
+                        if (dist >= 4.0) {
+                            drag = true
+                            mode.drag(evt.clientX, evt.clientY, ms.first, ms.second)
+                        }
+                    }
+                }
+            }
+        })
+
         doWithException {
             kotlin.browser.window.requestAnimationFrame { runFrame() }
         }
@@ -92,11 +126,7 @@ fun rungame() {
         kotlin.browser.window.addEventListener("resize", { evt -> onResize(evt); })
 
         var running = testBoard()
-        val ga = GameAnimator(YourTurnIntroMode(running))
-
-        kotlin.browser.window.addEventListener("click", { evt : dynamic ->
-            ga.getMode().click(evt.clientX, evt.clientY)
-        })
+        val ga = GameAnimator(YourTurnMode(running))
 
         ga.start()
     }

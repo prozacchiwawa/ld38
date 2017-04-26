@@ -195,12 +195,11 @@ data class EquivPosRecord(var type : EquivType, val x : Int, val y : Int, val te
 
 public data class GameStateData(
         val characters : Map<String, Character>,
-        val board : GameBoard
+        val board : GameBoard,
+        val chairs : Map<SquareAssoc,Ord> = board.square.mapIndexed { i, square -> Pair(i,square) }.filter { p -> p.second.role == SquareRole.COMMAND_SEAT }.map { p -> Pair(p.second.assoc, Ord(p.first)) }.toMap(),
+        val stations : Map<SquareAssoc,Ord> = board.square.mapIndexed { i, square -> Pair(i,square) }.filter { p -> p.second.role == SquareRole.WORK_STATION }.map { p -> Pair(p.second.assoc, Ord(p.first)) }.toMap(),
+        val hints : Hints = Hints(board, board.square.mapIndexed { i, square -> Pair(i,square) }.filter { p -> p.second.role == SquareRole.COMMAND_SEAT }.map { p -> Pair(p.second.assoc, Ord(p.first)) }.toMap())
         ) {
-    val chairs = board.square.mapIndexed { i, square -> Pair(i,square) }.filter { p -> p.second.role == SquareRole.COMMAND_SEAT }.map { p -> Pair(p.second.assoc, Ord(p.first)) }.toMap()
-    val stations = board.square.mapIndexed { i, square -> Pair(i,square) }.filter { p -> p.second.role == SquareRole.WORK_STATION }.map { p -> Pair(p.second.assoc, Ord(p.first)) }.toMap()
-    val hints : Hints = Hints(this)
-
     fun distinctState() : List<EquivPosRecord> {
         val doors = board.doors.values.map { d ->
             if (d.open) {
@@ -356,18 +355,18 @@ fun directionOf(a : Pair<Int,Int>, b : Pair<Int,Int>) : CharacterDirection {
 
 data class PathComponent(val prev: PathComponent?, val open: Boolean, val me: Pair<Int, Int>) {}
 
-fun addIfPassable(logical : GameStateData, targetX: Int, targetY: Int, first: PathComponent, visited: ArrayList<PathComponent>) {
-    if (logical.board.isPassable(targetX, targetY)) {
+fun addIfPassable(board : GameBoard, targetX: Int, targetY: Int, first: PathComponent, visited: ArrayList<PathComponent>) {
+    if (board.isPassable(targetX, targetY)) {
         visited.add(PathComponent(first, false, Pair(targetX, targetY)))
     }
 }
 
-fun pathfind(logical : GameStateData, fromX: Double, fromY: Double, toX: Double, toY: Double): ArrayList<Pair<Int, Int>>? {
+fun pathfind(board : GameBoard, fromX: Double, fromY: Double, toX: Double, toY: Double): ArrayList<Pair<Int, Int>>? {
     val atX: Int = Math.round(fromX)
     val atY: Int = Math.round(fromY)
     val wantX: Int = Math.round(toX)
     val wantY: Int = Math.round(toY)
-    val wantIdx = wantY * logical.board.dimX + wantX
+    val wantIdx = wantY * board.dimX + wantX
     val visited: ArrayList<PathComponent> = arrayListOf()
     visited.add(PathComponent(null, false, Pair(atX, atY)))
     while (visited.count() > 0) {
@@ -382,31 +381,30 @@ fun pathfind(logical : GameStateData, fromX: Double, fromY: Double, toX: Double,
             }
             return al
         }
-        addIfPassable(logical, first.me.first - 1, first.me.second, first, visited)
-        addIfPassable(logical, first.me.first + 1, first.me.second, first, visited)
-        addIfPassable(logical, first.me.first, first.me.second - 1, first, visited)
-        addIfPassable(logical, first.me.first, first.me.second + 1, first, visited)
+        addIfPassable(board, first.me.first - 1, first.me.second, first, visited)
+        addIfPassable(board, first.me.first + 1, first.me.second, first, visited)
+        addIfPassable(board, first.me.first, first.me.second - 1, first, visited)
+        addIfPassable(board, first.me.first, first.me.second + 1, first, visited)
     }
     return null
 }
 
-class Hints(val logical : GameStateData) {
+class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
     fun createTowardCommandGradient(chair : Ord) : Array<CharacterDirection?> {
-        console.log("All paths to",chair)
-        val arr = Array<CharacterDirection?>(logical.board.dimX * logical.board.dimY, { idx -> null });
+        val arr = Array<CharacterDirection?>(board.dimX * board.dimY, { idx -> null });
         if (chair != null) {
             val queue = arrayListOf(Pair(chair, 0))
             while (queue.size > 0) {
                 val qe = queue[0]
                 queue.removeAt(0)
-                val qpt = logical.board.coordsOfOrd(qe.first)
-                val neighborsBits = logical.board.getNeighbors(qpt.first, qpt.second).xor(15)
+                val qpt = board.coordsOfOrd(qe.first)
+                val neighborsBits = board.getNeighbors(qpt.first, qpt.second).xor(15)
                 val newNeighbors = bitsToNeighbors(neighborsBits, qpt).map { pt ->
-                    Pair(logical.board.ordOfCoords(pt.first, pt.second), qe.second + 1)
+                    Pair(board.ordOfCoords(pt.first, pt.second), qe.second + 1)
                 }
                 for (o in newNeighbors) {
                     if (arr[o.first.idx] == null) {
-                        arr[o.first.idx] = directionOf(logical.board.coordsOfOrd(qe.first), logical.board.coordsOfOrd(o.first))
+                        arr[o.first.idx] = directionOf(board.coordsOfOrd(qe.first), board.coordsOfOrd(o.first))
                         queue.add(o)
                     }
                 }
@@ -416,14 +414,14 @@ class Hints(val logical : GameStateData) {
         return arr
     }
     val towardCommand = SquareAssoc.values().flatMap({ x ->
-        val chair = logical.chairs.get(x)
+        val chair = chairs.get(x)
         if (chair != null) {
             listOf(Pair(x, createTowardCommandGradient(chair)))
         } else {
             listOf()
         }
     }).toMap()
-    val towardDoor : Map<Ord,Array<CharacterDirection?>> = logical.board.doors.map { x ->
+    val towardDoor : Map<Ord,Array<CharacterDirection?>> = board.doors.map { x ->
         Pair(x.key, createTowardCommandGradient(x.key))
     }.toMap()
 
@@ -443,7 +441,7 @@ class Hints(val logical : GameStateData) {
         var count = 0
         val res : ArrayList<Pair<Int,Int>> = arrayListOf()
         var where = Pair<Int,Int>(atX, atY)
-        var start = gradient[logical.board.ordOfCoords(atX, atY).idx]
+        var start = gradient[board.ordOfCoords(atX, atY).idx]
         if (start == null) {
             console.log("No start!")
             return null
@@ -451,7 +449,7 @@ class Hints(val logical : GameStateData) {
             while (start != null) {
                 res.add(where)
                 where = followDirection(start, where.first, where.second)
-                start = gradient[logical.board.ordOfCoords(where.first, where.second).idx]
+                start = gradient[board.ordOfCoords(where.first, where.second).idx]
                 count += 1
                 if (count > 1000) { throw Exception("Bad Following") }
             }
@@ -467,8 +465,8 @@ class Hints(val logical : GameStateData) {
                     x.toString().substring(0,1)
                 }
             }.joinToString("")
-        return (0..(logical.board.dimY - 1)).map { x ->
-                raw.substring(x * logical.board.dimX, (x+1) * logical.board.dimX)
+        return (0..(board.dimY - 1)).map { x ->
+                raw.substring(x * board.dimX, (x+1) * board.dimX)
             }.joinToString("\n")
     }
 
@@ -478,16 +476,16 @@ class Hints(val logical : GameStateData) {
             return ArrayList<Pair<Int,Int>>(listOf(Pair(a.first.toInt(),a.second.toInt())))
         }
         console.log("pathfind",a,b)
-        val doorA = logical.board.doors.values.sortedBy { door ->
+        val doorA = board.doors.values.sortedBy { door ->
             distance(a.first, a.second, door.x.toDouble(), door.y.toDouble())
         }.firstOrNull()
-        val doorB = logical.board.doors.values.sortedBy { door ->
+        val doorB = board.doors.values.sortedBy { door ->
             distance(b.first, b.second, door.x.toDouble(), door.y.toDouble())
         }.firstOrNull()
         // Follow the gradients, stopping at the first door we cross.
         if (doorA != null && doorB != null) {
-            val agrad = towardDoor[logical.board.ordOfCoords(doorA.x, doorA.y)]
-            val bgrad = towardDoor[logical.board.ordOfCoords(doorB.x, doorB.y)]
+            val agrad = towardDoor[board.ordOfCoords(doorA.x, doorA.y)]
+            val bgrad = towardDoor[board.ordOfCoords(doorB.x, doorB.y)]
             console.log(agrad, bgrad)
             if (agrad != null && bgrad != null) {
                 console.log("A\n"+showgradient(agrad)+"\n")
@@ -498,7 +496,7 @@ class Hints(val logical : GameStateData) {
                 if (pathToDoorA != null && pathToDoorB != null) {
                     val pathToFirstDoorA = ArrayList<Pair<Int,Int>>()
                     for (v in pathToDoorA.asIterable()) {
-                        if (logical.board.doors.containsKey(logical.board.ordOfCoords(v.first, v.second))) {
+                        if (board.doors.containsKey(board.ordOfCoords(v.first, v.second))) {
                             pathToFirstDoorA.add(v)
                             break
                         } else {
@@ -507,7 +505,7 @@ class Hints(val logical : GameStateData) {
                     }
                     val pathToFirstDoorB = ArrayList<Pair<Int,Int>>()
                     for (v in pathToDoorB.asIterable()) {
-                        if (logical.board.doors.containsKey(logical.board.ordOfCoords(v.first, v.second))) {
+                        if (board.doors.containsKey(board.ordOfCoords(v.first, v.second))) {
                             pathToFirstDoorB.add(v)
                             break
                         } else {
@@ -520,11 +518,11 @@ class Hints(val logical : GameStateData) {
                         val lastA = pathToFirstDoorA.last()
                         val lastB = pathToFirstDoorB.last()
                         if (lastA == lastB) {
-                            return pathfind(logical, a.first, a.second, b.first, b.second)
+                            return pathfind(board, a.first, a.second, b.first, b.second)
                         } else {
                             // pathToFirstDoorA + pathFromDoorAToDoorB + pathToFirstDoorB.reverse()
                             console.log(lastA,lastB)
-                            val abgrad = towardDoor[logical.board.ordOfCoords(lastA.first, lastA.second)]
+                            val abgrad = towardDoor[board.ordOfCoords(lastA.first, lastA.second)]
                             console.log(abgrad)
                             if (abgrad != null) {
                                 console.log("AB\n"+showgradient(abgrad)+"\n")

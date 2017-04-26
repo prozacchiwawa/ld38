@@ -99,16 +99,14 @@ fun placeSpriteRotated(assets : Assets, dim : BoardDim, ctx : CanvasRenderingCon
     ctx.restore()
 }
 
-fun getBoardSize(screenx : Int, screeny : Int, board : GameBoard) : BoardDim {
-    val height80Pct = screeny.toDouble() * 0.8
-    val width80Pct = screenx.toDouble() * 0.8
-    val tileWidthMax = width80Pct / board.dimX
-    val tileHeightMax = height80Pct / board.dimY
+fun getBoardSize(screenx : Double, screeny : Double, board : GameBoard) : BoardDim {
+    val tileWidthMax = screenx / board.dimX
+    val tileHeightMax = screeny / board.dimY
     val tileSize : Double = Math.min(tileWidthMax, tileHeightMax)
     val boardHeight = board.dimY.toDouble() * tileSize
     val boardWidth = board.dimX.toDouble() * tileSize
-    val boardTop = (screeny.toDouble() - boardHeight) / 2.0
-    val boardLeft = (screenx.toDouble() - boardWidth) / 2.0
+    val boardTop = (screeny - boardHeight) / 2.0
+    val boardLeft = (screenx - boardWidth) / 2.0
     return BoardDim(boardLeft, boardTop, boardWidth, boardHeight, tileSize)
 }
 
@@ -159,10 +157,10 @@ val wallSchemes = mapOf(
         Pair(15, arrayOf(Pair(WALL_LONG, 0), Pair(WALL_LONG, 90.0)))
 )
 
-fun drawBoard(screenx : Int, screeny : Int, sel : Pair<Int,Int>?, ctx : CanvasRenderingContext2D, state : GameState, assets : Assets, underlay : (BoardDim) -> Unit) {
+fun drawBaseBoard(ctx : CanvasRenderingContext2D, state : GameState, assets : Assets) {
     var board = state.logical.board
     var chars = state.logical.characters
-    val dim = getBoardSize(screenx, screeny, board)
+    val dim = getBoardSize(board.dimX * TILESIZE, board.dimY * TILESIZE, board)
     // Render world
     ctx.fillStyle = "black"
     ctx.fillRect(dim.boardLeft, dim.boardTop, dim.boardWidth, dim.boardHeight)
@@ -212,27 +210,56 @@ fun drawBoard(screenx : Int, screeny : Int, sel : Pair<Int,Int>?, ctx : CanvasRe
                 ctx.fillStyle = roomColor
                 ctx.fillRect(dim.boardLeft + (j * dim.tileSize) + 1, dim.boardTop + (i * dim.tileSize) + 1, dim.tileSize - 2.0, dim.tileSize - 2.0)
             }
-            // Render objects
+            // Fixed objects
             if (board.square[ord.idx].role == SquareRole.HEALING_BED) {
                 placeSpriteBigger(assets, dim, ctx, BED_SPRITE, j.toDouble(), i.toDouble(), 2.0)
             } else if (board.square[ord.idx].role == SquareRole.COMMAND_SEAT) {
                 placeSprite(assets, dim, ctx, COMMAND_SPRITE, j.toDouble(), i.toDouble())
-            } else if (door != null) {
-                var doorSprite = DOOR_CLOSED_SPRITE
-                if (door.open) {
-                    doorSprite = DOOR_OPEN_SPRITE
-                }
-                var doorAngle = 0.0
-                if (door.vertical) {
-                    doorAngle = 90.0
-                }
-                placeSpriteRotated(assets, dim, ctx, doorSprite, j.toDouble(), i.toDouble(), doorAngle)
             }
         }
     }
+}
 
-    // Underlay
-    underlay(dim)
+fun makeBaseBoard(state : GameState, scale : Double, assets : Assets) : HTMLCanvasElement {
+    val canvas : HTMLCanvasElement = kotlin.browser.document.createElement("canvas").asDynamic()
+    canvas.width = Math.floor(state.logical.board.dimX * TILESIZE)
+    canvas.height = Math.floor(state.logical.board.dimY * TILESIZE)
+    val ctx : CanvasRenderingContext2D = canvas.getContext("2d").asDynamic()
+    drawBaseBoard(ctx, state, assets)
+    return canvas
+}
+
+fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanvasElement, assets : Assets, offsetX : Double, offsetY : Double, scale : Double) {
+    var board = state.logical.board
+    var chars = state.logical.characters
+
+    // Render world
+    val renderWidth = scale * board.dimX * TILESIZE
+    val renderHeight = scale * board.dimY * TILESIZE
+    val leftSide = (screenX / 2.0) + offsetX - (renderWidth / 2.0)
+    val upperSide = (screenY / 2.0) + offsetY - (renderHeight / 2.0)
+    val dim = BoardDim(leftSide, upperSide, renderWidth, renderHeight, TILESIZE * scale)
+
+    ctx.drawImage(base, leftSide, upperSide, renderWidth, renderHeight)
+
+    for (kv in board.doors) {
+        val ord = kv.key
+        val door = kv.value
+        val p = board.coordsOfOrd(ord)
+        val i = p.second
+        val j = p.first
+
+        // Render objects
+        var doorSprite = DOOR_CLOSED_SPRITE
+        if (door.open) {
+            doorSprite = DOOR_OPEN_SPRITE
+        }
+        var doorAngle = 0.0
+        if (door.vertical) {
+            doorAngle = 90.0
+        }
+        placeSpriteRotated(assets, dim, ctx, doorSprite, j.toDouble(), i.toDouble(), doorAngle)
+    }
 
     // Render people
     for (disp in state.display.characters) {
@@ -250,14 +277,8 @@ fun drawBoard(screenx : Int, screeny : Int, sel : Pair<Int,Int>?, ctx : CanvasRe
             placeSprite(assets, dim, ctx, CHICKEN_SPRITE, disp.value.dispx, disp.value.dispy)
         }
     }
-    // Selection
-    if (sel != null) {
-        val x = sel.first
-        val y = sel.second
-        ctx.strokeStyle = "yellow"
-        ctx.strokeRect(dim.boardLeft + (x * dim.tileSize), dim.boardTop + (y * dim.tileSize), dim.tileSize, dim.tileSize)
-    }
+
     // Timer
     ctx.fillStyle = "black"
-    ctx.fillText("Time: " + lastTime, 0.0, 12.0, screenx.toDouble())
+    ctx.fillText("Time: " + lastTime, 0.0, 12.0)
 }

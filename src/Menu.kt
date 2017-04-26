@@ -48,7 +48,7 @@ data class Menu<T>(val selections : ArrayList<Pair<String,T>>, val tall : Double
             val metrics = ctx.measureText(s.first)
             width = Math.max(width, metrics.width)
         }
-        var left = near.left - sep - 2.0 * menuBorderSize
+        var left = near.left - sep - width - 2.0 * menuBorderSize
         if (near.left + near.width + sep + width + 2.0 * menuBorderSize < screenX) {
             // Place on right
             left = near.left + near.width + sep
