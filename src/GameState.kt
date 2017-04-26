@@ -522,11 +522,11 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
                         } else {
                             // pathToFirstDoorA + pathFromDoorAToDoorB + pathToFirstDoorB.reverse()
                             console.log(lastA,lastB)
-                            val abgrad = towardDoor[board.ordOfCoords(lastA.first, lastA.second)]
+                            val abgrad = towardDoor[board.ordOfCoords(lastB.first, lastB.second)]
                             console.log(abgrad)
                             if (abgrad != null) {
                                 console.log("AB\n"+showgradient(abgrad)+"\n")
-                                val pathAB = followGradient(abgrad, lastB.first, lastB.second)
+                                val pathAB = followGradient(abgrad, lastA.first, lastA.second)
                                 console.log("pathAB",pathAB)
                                 if (pathAB != null) {
                                     val res : ArrayList<Pair<Int,Int>> = ArrayList()
@@ -572,13 +572,13 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 var makeNewX = { kv: Character -> kv.x }
                 var makeNewY = { kv: Character -> kv.y }
                 if (kv.x < toward.first) {
-                    makeNewX = { kv: Character -> Math.min(kv.x + TILE_WALK_TIME * t, toward.first.toDouble()) }
+                    makeNewX = { kv: Character -> Math.min(kv.x + t / TILE_WALK_TIME, toward.first.toDouble()) }
                 } else if (kv.x > toward.first) {
-                    makeNewX = { kv: Character -> Math.max(kv.x - TILE_WALK_TIME * t, toward.first.toDouble()) }
+                    makeNewX = { kv: Character -> Math.max(kv.x - t / TILE_WALK_TIME, toward.first.toDouble()) }
                 } else if (kv.y < toward.second) {
-                    makeNewY = { kv: Character -> Math.min(kv.y + TILE_WALK_TIME * t, toward.second.toDouble()) }
+                    makeNewY = { kv: Character -> Math.min(kv.y + t / TILE_WALK_TIME, toward.second.toDouble()) }
                 } else if (kv.y > toward.second) {
-                    makeNewY = { kv: Character -> Math.max(kv.y - TILE_WALK_TIME * t, toward.second.toDouble()) }
+                    makeNewY = { kv: Character -> Math.max(kv.y - t / TILE_WALK_TIME, toward.second.toDouble()) }
                 }
                 var newDoing = kv.doing
                 val newX = makeNewX(kv)

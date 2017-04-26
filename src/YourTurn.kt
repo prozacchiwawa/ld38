@@ -61,6 +61,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
     var boardScale = 0.0
     var compact = false
     var background = makeBaseBoard(state, 1.0, assets)
+    var givingOrder : String? = null
 
     fun updateAnims(t : Double) {
         val empty : List<ClickAnim> = emptyList()
@@ -142,6 +143,17 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val mouse = getMouseTile(x, y)
         console.log("mouse click", mouse)
         clickAnims = clickAnims.plus(ClickAnim(x, y, elapsed, 0.0, RGBA(255.0, 255.0, 0.0, 0.0)))
+        val go = givingOrder
+        if (go != null) {
+            state = state.useCommand(go, Command(CommandType.IDLE, mouse, mouse))
+        } else {
+            val matchingChar = state.logical.characters.values.filter { ch ->
+                ch.x.toInt() == mouse.first && ch.y.toInt() == mouse.second
+            }.take(1).firstOrNull()
+            if (matchingChar != null) {
+                givingOrder = matchingChar.id
+            }
+        }
     }
 
     override fun drag(x : Double, y : Double, u : Double, v : Double) {
