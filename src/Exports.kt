@@ -21,20 +21,8 @@ val boardCvt : (dynamic) -> GameBoard = { desc : dynamic ->
     }
     GameBoard(dimX, dimY, squares, doors)
 }
-val gameStateCvt : (dynamic, dynamic) -> GameState = { chars : dynamic, board : dynamic ->
-    var chlen = chars.length
-    val charMap : MutableMap<String, Character> = mutableMapOf()
-    for (i in 0..(chlen-1)) {
-        val chent = chars[i]
-        val ch = Character(chent.id, chent.name, chent.x, chent.y, CharClass.valueOf(chent.charclass), chent.team, chent.health, arrayListOf())
-        charMap[ch.id] = ch
-    }
-    GameState(GameStateData(charMap, boardCvt(board)))
-}
-
 fun createExports() : dynamic {
     val exports : dynamic = js("new Object()")
-    exports.GameState = gameStateCvt
     exports.simpleBoardConvert = { s: Array<String> -> simpleBoardConvert(s) }
     exports.getCharList = { t: Int, s: GameState ->
         var r = js("[]")
@@ -52,7 +40,7 @@ fun createExports() : dynamic {
     exports.showBoard = { s: GameState ->
         var res = ArrayList<String>()
         var chars = s.logical.characters.values.map { ch ->
-            Pair(s.logical.board.ordOfCoords(ch.x, ch.y), ch.team)
+            Pair(s.logical.board.ordOfCoords(ch.x.toInt(), ch.y.toInt()), ch.team)
         }.toMap()
 
         for (i in 0..(s.logical.board.dimY - 1)) {
@@ -122,44 +110,39 @@ fun createExports() : dynamic {
                 val name = split[0].trim()
                 val locAndCmd = split[1].trim().split(" ")
                 val loc = locAndCmd[0].split(",")
-                val action = CommandType.valueOf(locAndCmd[1])
+                val toward = locAndCmd[1].split(",")
+                val action = CommandType.valueOf(locAndCmd[2])
                 var dir : CharacterDirection? = null
                 if (locAndCmd.size > 2) {
-                    dir = CharacterDirection.valueOf(locAndCmd[2])
+                    dir = CharacterDirection.valueOf(locAndCmd[3])
                 }
                 val locPair = Pair(parseInt(loc[0]), parseInt(loc[1]))
+                val towardPair = Pair(parseInt(toward[0]), parseInt(toward[1]))
                 val who = state.logical.characters.get(name)
                 if (who != null) {
-                    val moves = getMoves(state.logical.board, who)
-                    var dirCoords = Pair(locPair.first, locPair.second - 1)
-                    if (dir == CharacterDirection.SOUTH) {
-                        dirCoords = Pair(locPair.first, locPair.second + 1)
-                    } else if (dir == CharacterDirection.EAST) {
-                        dirCoords = Pair(locPair.first + 1, locPair.second)
-                    } else if (dir == CharacterDirection.WEST) {
-                        dirCoords = Pair(locPair.first - 1, locPair.second)
-                    }
-                    if (!moves.contains(state.logical.board.ordOfCoords(locPair.first, locPair.second))) {
-                        "Impossible move location"
-                    } else if (action == CommandType.WAIT) {
-                        state.executeCommand(who.copy(x = locPair.first, y = locPair.second), action, locPair.first, locPair.second)
-                    } else {
-                        state.executeCommand(who.copy(x = locPair.first, y = locPair.second), action, dirCoords.first, dirCoords.second)
-                    }
+                    state.useCommand(who.id, Command(action, locPair, towardPair))
                 } else {
                     "No character named " + name
                 }
             } else {
-                "Format [name] @ x,y ACTION [DIR]"
+                "Format: 'lt. name @ x,y x,y ACTION [DIR]'"
             }
         } catch (e : Exception) {
             "Exception: " + e.toString()
         }
     }
-    exports.enemyturn = { state : GameState, turn : Int ->
-        ComputerTurnMode(turn, state).doTurn()
+    exports.pathfind = {state : GameState, ax : Double, ay : Double, bx : Double, by : Double ->
+        val p = state.logical.hints.pathfind(Pair(ax,ay), Pair(bx,by))
+        console.log("p",p)
+        if (p != null) {
+            p.toTypedArray()
+        } else {
+            null
+        }
     }
-    exports.doPostTurn = { state : GameState -> state.doPostTurn() }
+    exports.run = {state : GameState, t : Double ->
+        state.run(t)
+    }
     exports.setRandom = { r : () -> Double -> random = r }
     return exports
 }

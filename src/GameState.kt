@@ -9,6 +9,12 @@ import java.util.*
 val DOOR_START_HP = 50
 val CHAR_START_HP = 30
 
+fun distance(x : Double, y : Double, s : Double, t : Double) : Double {
+    val dx = (x - s)
+    val dy = (y - t)
+    return Math.sqrt((dx * dx) + (dy * dy))
+}
+
 public enum class CharClass {
     OFFICER, LIFESUPPORT, ENGINEER, DOCTOR, SECURITY
 }
@@ -41,15 +47,18 @@ public data class CharacterAnim(
         ) {
 }
 
+data class RoutedCommand(val hints : Hints, val ch : Pair<Int,Int>, val cmd : Command, val path : ArrayList<Pair<Int,Int>>? = hints.pathfind(Pair(ch.first.toDouble(),ch.second.toDouble()), Pair(cmd.at.first.toDouble(),cmd.at.second.toDouble()))) { }
+
 public data class Character(
         val id : String,
         val name : String,
-        val x : Int,
-        val y : Int,
+        val x : Double,
+        val y : Double,
         val charclass : CharClass,
         val team : Int,
         val health : Int,
-        val path : ArrayList<Pair<Character,Command>>
+        val dir : CharacterDirection,
+        val doing : RoutedCommand
         ) {
 
     fun availMoves() : Int {
@@ -129,6 +138,27 @@ public data class GameBoard(
         }
         return res
     }
+
+    fun getNeighbors(x : Int, y : Int) : Int {
+        var res : Int = 0
+        val leftNeighbor = getNeighbor(x - 1, y)
+        val rightNeighbor = getNeighbor(x + 1, y)
+        val upNeighbor = getNeighbor(x, y - 1)
+        val downNeighbor = getNeighbor(x, y + 1)
+        if ((leftNeighbor != null && leftNeighbor.role == SquareRole.WALL)) {
+            res = res.or(1)
+        }
+        if ((rightNeighbor != null && rightNeighbor.role == SquareRole.WALL)) {
+            res = res.or(4)
+        }
+        if ((upNeighbor != null && upNeighbor.role == SquareRole.WALL)) {
+            res = res.or(2)
+        }
+        if ((downNeighbor != null && downNeighbor.role == SquareRole.WALL)) {
+            res = res.or(8)
+        }
+        return res
+    }
 }
 
 public data class ClassStats(
@@ -167,6 +197,10 @@ public data class GameStateData(
         val characters : Map<String, Character>,
         val board : GameBoard
         ) {
+    val chairs = board.square.mapIndexed { i, square -> Pair(i,square) }.filter { p -> p.second.role == SquareRole.COMMAND_SEAT }.map { p -> Pair(p.second.assoc, Ord(p.first)) }.toMap()
+    val stations = board.square.mapIndexed { i, square -> Pair(i,square) }.filter { p -> p.second.role == SquareRole.WORK_STATION }.map { p -> Pair(p.second.assoc, Ord(p.first)) }.toMap()
+    val hints : Hints = Hints(this)
+
     fun distinctState() : List<EquivPosRecord> {
         val doors = board.doors.values.map { d ->
             if (d.open) {
@@ -175,7 +209,7 @@ public data class GameStateData(
                 EquivPosRecord(EquivType.CLOSED_DOOR, d.x, d.y, 0)
             }
         }
-        return characters.values.map { ch -> EquivPosRecord(EquivType.UNIT, ch.x, ch.y, ch.team) }.plus(doors)
+        return characters.values.map { ch -> EquivPosRecord(EquivType.UNIT, ch.x.toInt(), ch.y.toInt(), ch.team) }.plus(doors)
     }
     fun equivalent(other : GameStateData) : Boolean {
         return distinctState().equals(other.distinctState())
@@ -197,7 +231,7 @@ public data class GameStateData(
     fun isWin(team : Int) : Boolean {
         return characters.values.filter { ch ->
                 if (ch.team == team) {
-                    val ord = board.ordOfCoords(ch.x, ch.y)
+                    val ord = board.ordOfCoords(ch.x.toInt(), ch.y.toInt())
                     board.square[ord.idx].role == SquareRole.COMMAND_SEAT
                 } else {
                     false
@@ -211,12 +245,12 @@ public data class GameStateData(
 
     fun score(team : Int) : Double {
         val stuff = characters.values.map { ch ->
-            val ord = board.ordOfCoords(ch.x, ch.y)
+            val ord = board.ordOfCoords(ch.x.toInt(), ch.y.toInt())
             val ords = arrayOf(
-                    board.ordOfCoords(ch.x-1,ch.y),
-                    board.ordOfCoords(ch.x+1,ch.y),
-                    board.ordOfCoords(ch.x,ch.y-1),
-                    board.ordOfCoords(ch.x,ch.y+1)
+                    board.ordOfCoords((ch.x-1).toInt(),ch.y.toInt()),
+                    board.ordOfCoords((ch.x+1).toInt(),ch.y.toInt()),
+                    board.ordOfCoords(ch.x.toInt(),(ch.y-1).toInt()),
+                    board.ordOfCoords(ch.x.toInt(),(ch.y+1).toInt())
             ).filter { ord -> ord.idx >= 0 && ord.idx < board.dimX * board.dimY }
             if (ch.team == team)
             {
@@ -249,57 +283,7 @@ public data class GameStateData(
     }
 
     fun isPassable(x : Int, y : Int) : Boolean {
-        return board.isPassable(x, y) && !(characters.any { ch -> ch.value.x == x && ch.value.y == y })
-    }
-
-    fun nonMoveNeighbors(ch : Character) : List<Pair<Character,Command>> {
-        val neighbors = ArrayList<Pair<Character,Command>>()
-        val ords = getMoves(board, ch)
-        for (ord in ords) {
-            var door = board.doors.get(ord)
-            if (door != null) {
-                if (door.locked) {
-                    neighbors.add(Pair(ch, Command(CommandType.ATTACK, board.coordsOfOrd(ord))))
-                } else if (!door.open) {
-                    neighbors.add(Pair(ch, Command(CommandType.OPEN, board.coordsOfOrd(ord))))
-                } else {
-                    neighbors.add(Pair(ch, Command(CommandType.CLOSE, board.coordsOfOrd(ord))))
-                }
-            }
-        }
-        for (ot in characters.values) {
-            if (ords.any { ord ->
-                val coord = board.coordsOfOrd(ord)
-                ot.x == coord.first && ot.y == coord.second && ch.team != ot.team
-            }) {
-                neighbors.add(Pair(ch, Command(CommandType.ATTACK, Pair(ch.x, ch.y))))
-            }
-        }
-        neighbors.add(Pair(ch, Command(CommandType.WAIT, Pair(ch.x, ch.y))))
-        return neighbors
-    }
-
-    fun neighbors(exclude : Set<String>) : List<Pair<Character,Command>> {
-        val neighbors = ArrayList<Pair<Character,Command>>()
-        for (ch in characters.values.filter { ch -> !exclude.contains(ch.id) }) {
-            if (exclude.contains(ch.id)) {
-                continue
-            }
-            if (isPassable(ch.x-1,ch.y)) {
-                neighbors.plusAssign(nonMoveNeighbors(ch.copy(x = ch.x-1, y = ch.y)))
-            }
-            if (isPassable(ch.x+1,ch.y)) {
-                neighbors.plusAssign(nonMoveNeighbors(ch.copy(x = ch.x+1, y = ch.y)))
-            }
-            if (isPassable(ch.x,ch.y-1)) {
-                neighbors.plusAssign(nonMoveNeighbors(ch.copy(x = ch.x, y = ch.y-1)))
-            }
-            if (isPassable(ch.x,ch.y+1)) {
-                neighbors.plusAssign(nonMoveNeighbors(ch.copy(x = ch.x, y = ch.y+1)))
-            }
-            //neighbors.add(Pair(ch, Command(CommandType.WAIT, Pair(ch.x, ch.y))))
-        }
-        return neighbors
+        return board.isPassable(x, y) && !(characters.any { ch -> (ch.value.x).toInt() == x && (ch.value.y).toInt() == y })
     }
 }
 
@@ -320,339 +304,302 @@ public data class SquareDisplay(
         ) {
 }
 
-public class GameDisplay(logical: GameStateData) {
-    var logical : GameStateData = logical;
-    val characters : MutableMap<String, CharacterDisplay> =
-            initDisplayFromState(logical);
-    val board : Array<SquareDisplay> = initBoardFromState(logical);
-
-    fun initDisplayFromState(logical : GameStateData) :
-            MutableMap<String, CharacterDisplay> {
-        val charMap : MutableMap<String, CharacterDisplay> = mutableMapOf();
-        for (kv in logical.characters) {
-            charMap[kv.key] =
-                    CharacterDisplay(
-                            kv.value.x.toDouble(),
-                            kv.value.y.toDouble(),
-                            kv.value.x.toDouble(),
-                            kv.value.y.toDouble(),
-                            CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE),
-                            0.0,
-                            0.0
-                    )
-        }
-        return charMap;
+fun initDisplayFromState(logical : GameStateData) :
+        Map<String, CharacterDisplay> {
+    val charMap : MutableMap<String, CharacterDisplay> = mutableMapOf();
+    for (kv in logical.characters) {
+        charMap[kv.key] =
+                CharacterDisplay(
+                        kv.value.x.toDouble(),
+                        kv.value.y.toDouble(),
+                        kv.value.x.toDouble(),
+                        kv.value.y.toDouble(),
+                        CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE),
+                        0.0,
+                        0.0
+                )
     }
+    return charMap;
+}
 
-    fun initBoardFromState(logical : GameStateData) : Array<SquareDisplay> {
-        val boardDisp : Array<SquareDisplay> = arrayOf()
-        val board = logical.board
-        for (i in 0..(board.square.size - 1)) {
-            val door = board.doors.get(Ord(i))
-            if (door != null) {
-                boardDisp[i] = SquareDisplay(SquareRole.NOROLE, SquareAssoc.HALLWAY, DoorDisplayState(door.vertical, door.type, false, false, 0.0, 0.0))
-            }
-        }
-        return boardDisp
-    }
+data class GameDisplay(val logical: GameStateData, val characters : Map<String, CharacterDisplay> = initDisplayFromState(logical)) {
 }
 
 data class PathCommand(val x : Int, val y : Int, val open : Boolean) {
 }
 
-public class GameState(logical : GameStateData) {
-    val logical: GameStateData = logical;
-    var display: GameDisplay = computeDisplay(logical)
-    var sel: Pair<Int, Int>? = null
+fun bitsToNeighbors(bits : Int, pt : Pair<Int, Int>) : Iterable<Pair<Int,Int>> {
+    val res : ArrayList<Pair<Int,Int>> = arrayListOf()
+    if (bits.and(1) != 0) {
+        res.add(Pair(pt.first - 1, pt.second))
+    }
+    if (bits.and(2) != 0) {
+        res.add(Pair(pt.first, pt.second - 1))
+    }
+    if (bits.and(4) != 0) {
+        res.add(Pair(pt.first + 1, pt.second))
+    }
+    if (bits.and(8) != 0) {
+        res.add(Pair(pt.first, pt.second + 1))
+    }
+    return res
+}
+
+fun directionOf(a : Pair<Int,Int>, b : Pair<Int,Int>) : CharacterDirection {
+    if (a.first == b.first) {
+        if (a.second < b.second) { return CharacterDirection.SOUTH } else { return CharacterDirection.NORTH }
+    } else {
+        if (a.first < b.first) { return CharacterDirection.EAST } else { return CharacterDirection.WEST }
+    }
+}
+
+
+data class PathComponent(val prev: PathComponent?, val open: Boolean, val me: Pair<Int, Int>) {}
+
+fun addIfPassable(logical : GameStateData, targetX: Int, targetY: Int, first: PathComponent, visited: ArrayList<PathComponent>) {
+    if (logical.board.isPassable(targetX, targetY)) {
+        visited.add(PathComponent(first, false, Pair(targetX, targetY)))
+    }
+}
+
+fun pathfind(logical : GameStateData, fromX: Double, fromY: Double, toX: Double, toY: Double): ArrayList<Pair<Int, Int>>? {
+    val atX: Int = Math.round(fromX)
+    val atY: Int = Math.round(fromY)
+    val wantX: Int = Math.round(toX)
+    val wantY: Int = Math.round(toY)
+    val wantIdx = wantY * logical.board.dimX + wantX
+    val visited: ArrayList<PathComponent> = arrayListOf()
+    visited.add(PathComponent(null, false, Pair(atX, atY)))
+    while (visited.count() > 0) {
+        val first = visited[0]
+        visited.removeAt(0)
+        if (first.me.first == wantX && first.me.second == wantY) {
+            val al: ArrayList<Pair<Int, Int>> = arrayListOf()
+            var f: PathComponent? = first
+            while (f != null) {
+                al.add(0, f.me)
+                f = f.prev
+            }
+            return al
+        }
+        addIfPassable(logical, first.me.first - 1, first.me.second, first, visited)
+        addIfPassable(logical, first.me.first + 1, first.me.second, first, visited)
+        addIfPassable(logical, first.me.first, first.me.second - 1, first, visited)
+        addIfPassable(logical, first.me.first, first.me.second + 1, first, visited)
+    }
+    return null
+}
+
+class Hints(val logical : GameStateData) {
+    fun createTowardCommandGradient(chair : Ord) : Array<CharacterDirection?> {
+        console.log("All paths to",chair)
+        val arr = Array<CharacterDirection?>(logical.board.dimX * logical.board.dimY, { idx -> null });
+        if (chair != null) {
+            val queue = arrayListOf(Pair(chair, 0))
+            while (queue.size > 0) {
+                val qe = queue[0]
+                queue.removeAt(0)
+                val qpt = logical.board.coordsOfOrd(qe.first)
+                val neighborsBits = logical.board.getNeighbors(qpt.first, qpt.second).xor(15)
+                val newNeighbors = bitsToNeighbors(neighborsBits, qpt).map { pt ->
+                    Pair(logical.board.ordOfCoords(pt.first, pt.second), qe.second + 1)
+                }
+                for (o in newNeighbors) {
+                    if (arr[o.first.idx] == null) {
+                        arr[o.first.idx] = directionOf(logical.board.coordsOfOrd(qe.first), logical.board.coordsOfOrd(o.first))
+                        queue.add(o)
+                    }
+                }
+            }
+            arr[chair.idx] = null
+        }
+        return arr
+    }
+    val towardCommand = SquareAssoc.values().flatMap({ x ->
+        val chair = logical.chairs.get(x)
+        if (chair != null) {
+            listOf(Pair(x, createTowardCommandGradient(chair)))
+        } else {
+            listOf()
+        }
+    }).toMap()
+    val towardDoor : Map<Ord,Array<CharacterDirection?>> = logical.board.doors.map { x ->
+        Pair(x.key, createTowardCommandGradient(x.key))
+    }.toMap()
+
+    fun followDirection(dir : CharacterDirection, atX : Int, atY : Int) : Pair<Int,Int> {
+        if (dir == CharacterDirection.SOUTH) {
+            return Pair<Int, Int>(atX, atY - 1)
+        } else if (dir == CharacterDirection.NORTH) {
+            return Pair<Int, Int>(atX, atY + 1)
+        } else if (dir == CharacterDirection.WEST) {
+            return Pair<Int, Int>(atX + 1, atY)
+        } else {
+            return Pair<Int, Int>(atX - 1, atY)
+        }
+    }
+
+    fun followGradient(gradient : Array<CharacterDirection?>, atX : Int, atY : Int) : ArrayList<Pair<Int,Int>>? {
+        var count = 0
+        val res : ArrayList<Pair<Int,Int>> = arrayListOf()
+        var where = Pair<Int,Int>(atX, atY)
+        var start = gradient[logical.board.ordOfCoords(atX, atY).idx]
+        if (start == null) {
+            console.log("No start!")
+            return null
+        } else {
+            while (start != null) {
+                res.add(where)
+                where = followDirection(start, where.first, where.second)
+                start = gradient[logical.board.ordOfCoords(where.first, where.second).idx]
+                count += 1
+                if (count > 1000) { throw Exception("Bad Following") }
+            }
+            res.add(where)
+            return res
+        }
+    }
+
+    fun showgradient(g : Array<CharacterDirection?>) : String {
+        val raw =
+            g.map { x ->
+                if (x == null) { "." } else {
+                    x.toString().substring(0,1)
+                }
+            }.joinToString("")
+        return (0..(logical.board.dimY - 1)).map { x ->
+                raw.substring(x * logical.board.dimX, (x+1) * logical.board.dimX)
+            }.joinToString("\n")
+    }
+
+    fun pathfind(a : Pair<Double, Double>, b : Pair<Double, Double>) : ArrayList<Pair<Int,Int>>? {
+        // Find the closest door to each
+        if (a == b) {
+            return ArrayList<Pair<Int,Int>>(listOf(Pair(a.first.toInt(),a.second.toInt())))
+        }
+        console.log("pathfind",a,b)
+        val doorA = logical.board.doors.values.sortedBy { door ->
+            distance(a.first, a.second, door.x.toDouble(), door.y.toDouble())
+        }.firstOrNull()
+        val doorB = logical.board.doors.values.sortedBy { door ->
+            distance(b.first, b.second, door.x.toDouble(), door.y.toDouble())
+        }.firstOrNull()
+        // Follow the gradients, stopping at the first door we cross.
+        if (doorA != null && doorB != null) {
+            val agrad = towardDoor[logical.board.ordOfCoords(doorA.x, doorA.y)]
+            val bgrad = towardDoor[logical.board.ordOfCoords(doorB.x, doorB.y)]
+            console.log(agrad, bgrad)
+            if (agrad != null && bgrad != null) {
+                console.log("A\n"+showgradient(agrad)+"\n")
+                console.log("B\n"+showgradient(bgrad)+"\n")
+                val pathToDoorA = followGradient(agrad, a.first.toInt(), a.second.toInt())
+                val pathToDoorB = followGradient(bgrad, b.first.toInt(), b.second.toInt())
+                // Truncate each path at the first door it crosses in case it isn't the closest in space distance
+                if (pathToDoorA != null && pathToDoorB != null) {
+                    val pathToFirstDoorA = ArrayList<Pair<Int,Int>>()
+                    for (v in pathToDoorA.asIterable()) {
+                        if (logical.board.doors.containsKey(logical.board.ordOfCoords(v.first, v.second))) {
+                            pathToFirstDoorA.add(v)
+                            break
+                        } else {
+                            pathToFirstDoorA.add(v)
+                        }
+                    }
+                    val pathToFirstDoorB = ArrayList<Pair<Int,Int>>()
+                    for (v in pathToDoorB.asIterable()) {
+                        if (logical.board.doors.containsKey(logical.board.ordOfCoords(v.first, v.second))) {
+                            pathToFirstDoorB.add(v)
+                            break
+                        } else {
+                            pathToFirstDoorB.add(v)
+                        }
+                    }
+                    console.log("toA",pathToFirstDoorA)
+                    console.log("toB",pathToFirstDoorB)
+                    if (pathToFirstDoorA.size > 0 && pathToFirstDoorB.size > 0) {
+                        val lastA = pathToFirstDoorA.last()
+                        val lastB = pathToFirstDoorB.last()
+                        if (lastA == lastB) {
+                            return pathfind(logical, a.first, a.second, b.first, b.second)
+                        } else {
+                            // pathToFirstDoorA + pathFromDoorAToDoorB + pathToFirstDoorB.reverse()
+                            console.log(lastA,lastB)
+                            val abgrad = towardDoor[logical.board.ordOfCoords(lastA.first, lastA.second)]
+                            console.log(abgrad)
+                            if (abgrad != null) {
+                                console.log("AB\n"+showgradient(abgrad)+"\n")
+                                val pathAB = followGradient(abgrad, lastB.first, lastB.second)
+                                console.log("pathAB",pathAB)
+                                if (pathAB != null) {
+                                    val res : ArrayList<Pair<Int,Int>> = ArrayList()
+                                    res.plusAssign(pathToFirstDoorA.plus(pathAB.drop(1)).plus(pathToFirstDoorB.reversed().drop(1)))
+                                    return res
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return null
+    }
+}
+
+public class GameState(logical : GameStateData, display : GameDisplay = GameDisplay(logical)) {
+    val logical : GameStateData = logical
+    var display : GameDisplay = display
+
+    fun copy(logical : GameStateData = this.logical, display : GameDisplay = this.display) : GameState {
+        return GameState(logical, display)
+    }
 
     fun computeDisplay(logical: GameStateData): GameDisplay {
         return GameDisplay(logical);
     }
 
-    data class PathComponent(val prev: PathComponent?, val open: Boolean, val me: Pair<Int, Int>) {}
-
-    fun addIfPassable(targetX: Int, targetY: Int, first: PathComponent, visited: ArrayList<PathComponent>) {
-        if (logical.board.isPassable(targetX, targetY)) {
-            visited.add(PathComponent(first, false, Pair(targetX, targetY)))
-        }
-    }
-
-    fun pathfind(fromX: Double, fromY: Double, toX: Double, toY: Double): ArrayList<Pair<Int, Int>>? {
-        val atX: Int = Math.round(fromX)
-        val atY: Int = Math.round(fromY)
-        val wantX: Int = Math.round(toX)
-        val wantY: Int = Math.round(toY)
-        val wantIdx = wantY * logical.board.dimX + wantX
-        val visited: ArrayList<PathComponent> = arrayListOf()
-        visited.add(PathComponent(null, false, Pair(atX, atY)))
-        while (visited.count() > 0) {
-            val first = visited[0]
-            visited.removeAt(0)
-            if (first.me.first == wantX && first.me.second == wantY) {
-                val al: ArrayList<Pair<Int, Int>> = arrayListOf()
-                var f: PathComponent? = first
-                while (f != null) {
-                    al.add(0, f.me)
-                    f = f.prev
-                }
-                return al
-            }
-            addIfPassable(first.me.first - 1, first.me.second, first, visited)
-            addIfPassable(first.me.first + 1, first.me.second, first, visited)
-            addIfPassable(first.me.first, first.me.second - 1, first, visited)
-            addIfPassable(first.me.first, first.me.second + 1, first, visited)
-        }
-        return null
-    }
-
-    fun addIfPassableWithOpen(targetX: Int, targetY: Int, first: PathComponent, visited: ArrayList<PathComponent>) {
-        if (logical.board.isPassable(targetX, targetY)) {
-            visited.add(PathComponent(first, false, Pair(targetX, targetY)))
-        } else if (logical.board.doors.containsKey(logical.board.ordOfCoords(targetX, targetY))) {
-            visited.add(PathComponent(first, true, Pair(targetX, targetY)))
-        }
-    }
-
-    fun pathfindWithDoors(fromX: Double, fromY: Double, toX: Double, toY: Double, lastChance : Boolean): ArrayList<PathCommand>? {
-        val atX: Int = Math.round(fromX)
-        val atY: Int = Math.round(fromY)
-        val wantX: Int = Math.round(toX)
-        val wantY: Int = Math.round(toY)
-        val wantIdx = wantY * logical.board.dimX + wantX
-        val visited: ArrayList<PathComponent> = arrayListOf()
-        visited.add(PathComponent(null, false, Pair(atX, atY)))
-        var wh = getCurTime()
-        while (visited.count() > 0 && wh < lastTime + 0.2) {
-            val first = visited[0]
-            visited.removeAt(0)
-            if (first.me.first == wantX && first.me.second == wantY) {
-                val al: ArrayList<PathCommand> = arrayListOf()
-                var f: PathComponent? = first
-                while (f != null) {
-                    al.add(0, PathCommand(f.me.first, f.me.second, f.open))
-                    f = f.prev
-                }
-                return al
-            }
-            addIfPassableWithOpen(first.me.first - 1, first.me.second, first, visited)
-            addIfPassableWithOpen(first.me.first + 1, first.me.second, first, visited)
-            addIfPassableWithOpen(first.me.first, first.me.second - 1, first, visited)
-            addIfPassableWithOpen(first.me.first, first.me.second + 1, first, visited)
-            wh = getCurTime()
-        }
-        // Try to find the nearest closed door and open it if nothing else
-        if (lastChance) {
-            // Exhaustively find a door
-            val visited : MutableSet<Pair<Int,Int>> = mutableSetOf()
-            val nextPoint : ArrayList<PathComponent> = arrayListOf()
-            val gonext =
-                    { pathcomp : PathComponent ->
-                        if (!visited.contains(pathcomp.me)) {
-                            visited.add(pathcomp.me)
-                            nextPoint.add(pathcomp)
-                        }
-                    }
-            gonext(PathComponent(null, false, Pair(atX, atY)))
-            while (!nextPoint.isEmpty()) {
-                val pt = nextPoint.first()
-                nextPoint.remove(pt)
-                var idx = (pt.me.second * logical.board.dimX) + pt.me.first
-                val sq = logical.board.square[idx]
-                val door = logical.board.doors.get(Ord(idx))
-                if (door != null) {
-                    var res = PathComponent(pt, true, Pair(door.x, door.y))
-                    val al: ArrayList<PathCommand> = arrayListOf()
-                    var f: PathComponent? = res
-                    while (f != null) {
-                        al.add(0, PathCommand(f.me.first, f.me.second, f.open))
-                        f = f.prev
-                    }
-                    return al
-                } else if (sq.role != SquareRole.WALL && sq.role != SquareRole.WORK_STATION) {
-                    gonext(PathComponent(pt, false, Pair(pt.me.first - 1, pt.me.second)))
-                    gonext(PathComponent(pt, false, Pair(pt.me.first + 1, pt.me.second)))
-                    gonext(PathComponent(pt, false, Pair(pt.me.first, pt.me.second - 1)))
-                    gonext(PathComponent(pt, false, Pair(pt.me.first, pt.me.second + 1)))
-                }
-            }
-        }
-        return null
-    }
-
-    fun executeCommand(ch_: Character, cmd: CommandType, x: Int, y: Int): GameState {
-        var ch = ch_
-        val newPosition = Pair(ch.x, ch.y)
-        val cold = logical.characters.get(ch.id)
-        val cdisp = display.characters.get(ch.id)
-        if (cold != null && cdisp != null) {
-            var wold = Pair(cold.x, cold.y)
-            if (!wold.equals(cold)) {
-                if (logical.characters.values.filter { ot -> ot.x == ch.x && ot.y == ch.y }.count() > 0) {
-                    ch = ch.copy(x = cold.x, y = cold.y)
-                }
-            }
-            var logical = logical.copy(characters = logical.characters.plus(Pair(ch.id, ch)))
-            if (cmd == CommandType.OPEN) {
-                val ord = logical.board.ordOfCoords(x, y)
-                val door = logical.board.doors.get(ord)
-                if (door != null) {
-                    val newDoor = door.copy(open = true, locked = true)
-                    return GameState(logical.copy(board = logical.board.copy(doors = logical.board.doors.plus(Pair(ord, newDoor)))))
-                }
-            } else if (cmd == CommandType.CLOSE) {
-                val ord = logical.board.ordOfCoords(x, y)
-                val door = logical.board.doors.get(ord)
-                if (door != null) {
-                    val newDoor = door.copy(open = false)
-                    return GameState(logical.copy(board = logical.board.copy(doors = logical.board.doors.plus(Pair(ord, newDoor)))))
-                }
-            } else if (cmd == CommandType.ATTACK) {
-                val stats = classStats.getOrElse(ch.charclass, { ClassStats(2.0, 2.0) })
-                val ot = logical.characters.filter { kv -> kv.value.x == x && kv.value.y == y }.toList().firstOrNull()
-                if (ot != null) {
-                    var targetStats = classStats.getOrElse(ot.second.charclass, { ClassStats(2.0, 2.0) })
-                    if (ot.second.team == -1) {
-                        targetStats = stats.copy(defense = stats.defense / 5.0)
-                    }
-                    val damage = (rand() * 5.0) + (rand() * 5.0 * (stats.attack / targetStats.defense))
-                    val cdisp = display.characters.get(ch.id)
-                    if (cdisp != null) {
-                        display.characters.put(ch.id, cdisp.copy(lastDamage = damage, animation = CharacterAnim(cdisp.animation.dir, CharacterAnimType.FIGHT)))
-                    }
-                    val health = Math.max(ot.second.health - damage, 0.0).toInt()
-                    var team = ot.second.team
-                    if (health == 0) {
-                        team = ch.team
-                    }
-                    val gs = GameState(logical.copy(characters = logical.characters.plus(Pair(ot.first, ot.second.copy(health = health, team = team)))))
-                    gs.display = display
-                    return gs
-                } else {
-                    val ord = logical.board.ordOfCoords(x, y)
-                    val door = logical.board.doors.get(ord)
-                    if (door != null) {
-                        val damage = (rand() * 20.0)
-                        val cdisp = display.characters.get(ch.id)
-                        if (cdisp != null) {
-                            display.characters.put(ch.id, cdisp.copy(lastDamage = damage, animation = CharacterAnim(cdisp.animation.dir, CharacterAnimType.FIGHT)))
-                        }
-                        val health = Math.max(door.hp - damage, 0.0).toInt()
-                        var open = door.open
-                        var locked = door.locked
-                        if (health == 0) {
-                            open = true
-                            locked = false
-                        }
-                        val newDoor = door.copy(hp = health, open = open, locked = locked)
-                        val gs = GameState(logical.copy(board = logical.board.copy(doors = logical.board.doors.plus(Pair(ord, door.copy(hp = health))))))
-                        gs.display = display
-                        return gs
-                    }
-                }
-            }
-            return GameState(logical)
-        }
-        return this
-    }
-
-    fun doPostTurn(): GameState {
-        val gs = GameState(logical.copy(characters = logical.characters.mapValues { ch ->
-            val ord = logical.board.ordOfCoords(ch.value.x, ch.value.y)
-            if (logical.board.square[ord.idx].role == SquareRole.HEALING_BED) {
-                ch.value.copy(health = CHAR_START_HP)
-            } else if (ch.value.health < CHAR_START_HP) {
-                ch.value.copy(health = Math.min(ch.value.health + 1.0, CHAR_START_HP.toDouble()).toInt())
-            } else {
-                ch.value
-            }
-        }))
-        gs.display = display
-        return gs
-    }
-
-    data class ToFight(val ours: Character, val theirs: Character, val dist: Int) {}
-
-    fun findAWayForward(ch: Character): ArrayList<Pair<Character, Command>> {
-        if (ch.path.size > 0) {
-            return ch.path
-        }
-        var currentScore = logical.score(ch.team)
-
-        val takePath: ArrayList<Pair<Character, Command>> = arrayListOf()
-        val recruitCount = logical.characters.values.filter { och -> och.team == ch.team }.count()
-        val lowHealth = logical.characters.values.filter { ch -> ch.health < 10 }
-        val controlledPoints = logical.characters.values.filter { ch ->
-            val ord = logical.board.ordOfCoords(ch.x, ch.y)
-            logical.board.square[ord.idx].role == SquareRole.COMMAND_SEAT
-        }
-        val closestPoint = (0..(logical.board.square.size - 1)).filter { idx ->
-            logical.board.square[idx].role == SquareRole.COMMAND_SEAT
-        }.map { idx ->
-            val ord = Ord(idx)
-            val crd = logical.board.coordsOfOrd(ord)
-            Pair(ord, Math.abs((crd.first - ch.x).toDouble()) + Math.abs((crd.second - ch.y).toDouble()))
-        }.sortedBy { x -> x.second }.first()
-
-        val controlledSpecials = logical.characters.values.filter { ch ->
-            val ords = getMoves(logical.board, ch)
-            ords.filter { ord -> logical.board.square[ord.idx].role == SquareRole.WORK_STATION }.count() > 0
-        }
-        val charpositions = logical.characters.values.map { ch -> Pair(logical.board.ordOfCoords(ch.x, ch.y), ch) }.toMap()
-
-        if (rand().toInt() % 3 == 0) {
-            if (recruitCount < logical.characters.size / 5) {
-                // Recruit
-                console.log("Try to recruit")
-                var closestchars = logical.characters.values.filter { och -> och.team != ch.team }.map { och ->
-                    ToFight(ch, och, (Math.abs((ch.x - och.x).toDouble()) + Math.abs((ch.y - och.y).toDouble())).toInt())
-                }.sortedBy { e -> e.dist }.take(1)
-                for (cc in closestchars) {
-                    console.log("${cc.ours.name} ${cc.ours.x},${cc.ours.y} trying to recruit ${cc.theirs.name} ${cc.theirs.x},${cc.theirs.y}")
-                    val pf = pathfindWithDoors(cc.ours.x.toDouble(), cc.ours.y.toDouble(), cc.theirs.x.toDouble(), cc.theirs.y.toDouble(), true)
-                    if (pf != null) {
-
-
-
-                        takePath.plusAssign(pf.flatMap { p ->
-                            if (p.open) {
-                                arrayOf(Pair(ch, Command(CommandType.OPEN, Pair(p.x, p.y))), Pair(ch, Command(CommandType.WAIT, Pair(p.x, p.y)))).asIterable()
-                            } else {
-                                arrayOf(Pair(ch.copy(x = p.x, y = p.y), Command(CommandType.WAIT, Pair(p.x, p.y)))).asIterable()
-                            }
-                        })
-                        return takePath
-                    }
-                }
-            }
-
-            if (controlledPoints.count() < 3) {
-                var coords = logical.board.coordsOfOrd(closestPoint.first)
-                console.log("${ch.name} trying to get control point ${closestPoint}")
-                var pf = pathfindWithDoors(ch.x.toDouble(), ch.y.toDouble(), coords.first.toDouble(), coords.second.toDouble(), true)
-                if (pf != null) {
-                    takePath.plusAssign(pf.flatMap { p ->
-                        if (p.open) {
-                            arrayOf(Pair(ch, Command(CommandType.OPEN, Pair(p.x, p.y))), Pair(ch, Command(CommandType.WAIT, Pair(p.x, p.y)))).asIterable()
-                        } else {
-                            arrayOf(Pair(ch.copy(x = p.x, y = p.y), Command(CommandType.WAIT, Pair(p.x, p.y)))).asIterable()
-                        }
-                    })
-                    return takePath
-                }
-            } else if (controlledSpecials.count() < 2) {
-            }
+    fun useCommand(chid : String, cmd : Command) : GameState {
+        val ch = logical.characters.get(chid)
+        if (ch != null) {
+            return GameState(logical.copy(characters = logical.characters.plus(Pair(chid, ch.copy(doing = RoutedCommand(logical.hints, Pair(ch.x.toInt(), ch.y.toInt()), cmd))))), display)
         } else {
-            // Fallback
-            val excludes = logical.characters.keys.toMutableSet()
-            excludes.remove(ch.id)
-            val commandList = logical.neighbors(excludes).toList()
-            val choice = Math.floor(rand() * commandList.size)
-            takePath.add(commandList[choice])
-            excludes.add(ch.id)
-            return takePath
+            return this
         }
+    }
 
-        takePath.clear()
-        return takePath
+    fun run(t : Double) : GameState {
+        // For each character that has a pending action, try to move the character closer to where it's going
+        val updatedCharacters = logical.characters.values.map { kv ->
+            if (kv.doing.path != null && kv.doing.path.size > 0) {
+                var toward = kv.doing.path[0]
+                var makeNewX = { kv: Character -> kv.x }
+                var makeNewY = { kv: Character -> kv.y }
+                if (kv.x < toward.first) {
+                    makeNewX = { kv: Character -> Math.min(kv.x + TILE_WALK_TIME * t, toward.first.toDouble()) }
+                } else if (kv.x > toward.first) {
+                    makeNewX = { kv: Character -> Math.max(kv.x - TILE_WALK_TIME * t, toward.first.toDouble()) }
+                } else if (kv.y < toward.second) {
+                    makeNewY = { kv: Character -> Math.min(kv.y + TILE_WALK_TIME * t, toward.second.toDouble()) }
+                } else if (kv.y > toward.second) {
+                    makeNewY = { kv: Character -> Math.max(kv.y - TILE_WALK_TIME * t, toward.second.toDouble()) }
+                }
+                var newDoing = kv.doing
+                val newX = makeNewX(kv)
+                val newY = makeNewY(kv)
+                if (newX == toward.first.toDouble() && newY == toward.second.toDouble()) {
+                    val newPath = ArrayList<Pair<Int, Int>>()
+                    newPath.plusAssign(kv.doing.path.drop(1))
+                    newDoing = kv.doing.copy(path = newPath)
+                }
+                kv.copy(
+                        dir = directionOf(Pair(kv.x.toInt(), kv.y.toInt()), Pair(toward.first, toward.second)),
+                        x = newX,
+                        y = newY,
+                        doing = newDoing
+                )
+            } else {
+                kv
+            }
+        }.map { ch -> Pair(ch.id, ch) }
+        return GameState(logical = logical.copy(characters = logical.characters.plus(updatedCharacters)))
     }
 }

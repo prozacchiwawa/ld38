@@ -67,7 +67,7 @@ class GameAnimator(var mode : IGameMode) {
             kotlin.browser.window.requestAnimationFrame { runFrame() }
             val context = getRenderContext()
             if (context != null) {
-                drawBoard(screenX, screenY, context, mode.getState(), assets, { dim -> mode.underlay(dim, context) })
+                drawBoard(screenX, screenY, null, context, mode.getState(), assets, { dim -> mode.underlay(dim, context) })
                 mode.overlay(context)
             } else {
                 throw Exception("No canvas named main")

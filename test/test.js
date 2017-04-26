@@ -28,7 +28,7 @@ runGame.scan({}, function(seed,event) {
             rl.question("> ", sendLine);
         }
     } else if (event.type === 'doneauto') {
-        res.hopper = '';
+        res.hopper = [];
         rl.question("> ", sendLine);
     } else if (event.type === 'readline') {
         if (res.phase === 'yourturn') {
@@ -45,6 +45,11 @@ runGame.scan({}, function(seed,event) {
                 }
             } else if (event.data === 'board') {
                 rl.write(ld38.showBoard(res.state)+'\n');
+	        } else if (event.data.indexOf('pathfind') === 0) {
+		        var coords = event.data.split(' ');
+		        coords.shift();
+                var path = ld38.pathfind(res.state, parseInt(coords[0]), parseInt(coords[1]), parseInt(coords[2]), parseInt(coords[3]));
+                console.log(path);
             } else {
                 var split = event.data.split('@')
                 var chname = split[0].trim()
@@ -56,18 +61,6 @@ runGame.scan({}, function(seed,event) {
                 } else {
                     res.state = newState;
                 }
-            }
-            if (Object.keys(res.remaining).length == 0) {
-                rl.write('turn 1\n');
-                res.state = ld38.enemyturn(res.state, 1);
-                rl.write('turn 2\n');
-                res.state = ld38.enemyturn(res.state, 2);
-                rl.write('turn 3\n');
-                res.state = ld38.enemyturn(res.state, 3);
-                rl.write('post turn\n');
-                res.state = ld38.doPostTurn(res.state);
-                rl.write('Your turn\n');
-                res.remaining = charSetFromNames(ld38.getCharList(0,res.state));
             }
         } else {
             rl.write('waiting...');

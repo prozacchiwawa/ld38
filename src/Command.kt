@@ -5,8 +5,8 @@
 package ldjam.prozacchiwawa
 
 enum class CommandType {
-    NOTHING, WAIT, MOVE, OPEN, CLOSE, ATTACK, SPECIAL, SUPER
+    IDLE, OPEN, CLOSE, ATTACK, SPECIAL, SUPER
 }
 
-data class Command(val type : CommandType, val location : Pair<Int, Int>) {
+data class Command(val type : CommandType, val at : Pair<Int, Int>, val toward : Pair<Int,Int>) {
 }

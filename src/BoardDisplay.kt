@@ -159,7 +159,7 @@ val wallSchemes = mapOf(
         Pair(15, arrayOf(Pair(WALL_LONG, 0), Pair(WALL_LONG, 90.0)))
 )
 
-fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, state : GameState, assets : Assets, underlay : (BoardDim) -> Unit) {
+fun drawBoard(screenx : Int, screeny : Int, sel : Pair<Int,Int>?, ctx : CanvasRenderingContext2D, state : GameState, assets : Assets, underlay : (BoardDim) -> Unit) {
     var board = state.logical.board
     var chars = state.logical.characters
     val dim = getBoardSize(screenx, screeny, board)
@@ -251,7 +251,6 @@ fun drawBoard(screenx : Int, screeny : Int, ctx : CanvasRenderingContext2D, stat
         }
     }
     // Selection
-    val sel = state.sel
     if (sel != null) {
         val x = sel.first
         val y = sel.second
