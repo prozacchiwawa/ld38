@@ -146,6 +146,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val go = givingOrder
         if (go != null) {
             state = state.useCommand(go, Command(CommandType.IDLE, mouse, mouse))
+            givingOrder = null
         } else {
             val matchingChar = state.logical.characters.values.filter { ch ->
                 ch.x.toInt() == mouse.first && ch.y.toInt() == mouse.second

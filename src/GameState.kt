@@ -54,6 +54,8 @@ public data class Character(
         val name : String,
         val x : Double,
         val y : Double,
+        val lastx : Double,
+        val lasty : Double,
         val charclass : CharClass,
         val team : Int,
         val health : Int,
@@ -176,10 +178,6 @@ val classStats = mapOf(
 )
 
 public data class CharacterDisplay(
-        val dispx : Double,
-        val dispy : Double,
-        val targetx : Double,
-        val targety : Double,
         val animation : CharacterAnim,
         val animstart : Double,
         val lastDamage : Double
@@ -309,10 +307,6 @@ fun initDisplayFromState(logical : GameStateData) :
     for (kv in logical.characters) {
         charMap[kv.key] =
                 CharacterDisplay(
-                        kv.value.x.toDouble(),
-                        kv.value.y.toDouble(),
-                        kv.value.x.toDouble(),
-                        kv.value.y.toDouble(),
                         CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE),
                         0.0,
                         0.0
@@ -344,7 +338,7 @@ fun bitsToNeighbors(bits : Int, pt : Pair<Int, Int>) : Iterable<Pair<Int,Int>> {
     return res
 }
 
-fun directionOf(a : Pair<Int,Int>, b : Pair<Int,Int>) : CharacterDirection {
+fun directionOf(a : Pair<Double,Double>, b : Pair<Double,Double>) : CharacterDirection {
     if (a.first == b.first) {
         if (a.second < b.second) { return CharacterDirection.SOUTH } else { return CharacterDirection.NORTH }
     } else {
@@ -404,7 +398,9 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
                 }
                 for (o in newNeighbors) {
                     if (arr[o.first.idx] == null) {
-                        arr[o.first.idx] = directionOf(board.coordsOfOrd(qe.first), board.coordsOfOrd(o.first))
+                        val c1 = board.coordsOfOrd(qe.first)
+                        val c2 = board.coordsOfOrd(o.first)
+                        arr[o.first.idx] = directionOf(Pair(c1.first.toDouble(),c1.second.toDouble()), Pair(c2.first.toDouble(),c2.second.toDouble()))
                         queue.add(o)
                     }
                 }
@@ -531,6 +527,25 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
                                 if (pathAB != null) {
                                     val res : ArrayList<Pair<Int,Int>> = ArrayList()
                                     res.plusAssign(pathToFirstDoorA.plus(pathAB.drop(1)).plus(pathToFirstDoorB.reversed().drop(1)))
+                                    // Filter dups
+                                    var i = 0
+                                    var j = 0
+                                    while (i < res.size) {
+                                        j = i + 1
+                                        while (j < res.size) {
+                                            if (res[i] == res[j]) {
+                                                var k = i+1
+                                                while (k != j+1) {
+                                                    res.removeAt(i+1)
+                                                    k++
+                                                }
+                                                j = i+1
+                                            } else {
+                                                j++
+                                            }
+                                        }
+                                        i++
+                                    }
                                     return res
                                 }
                             }
@@ -581,23 +596,52 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                     makeNewY = { kv: Character -> Math.max(kv.y - t / TILE_WALK_TIME, toward.second.toDouble()) }
                 }
                 var newDoing = kv.doing
+                var newDir = kv.dir
                 val newX = makeNewX(kv)
                 val newY = makeNewY(kv)
                 if (newX == toward.first.toDouble() && newY == toward.second.toDouble()) {
                     val newPath = ArrayList<Pair<Int, Int>>()
                     newPath.plusAssign(kv.doing.path.drop(1))
                     newDoing = kv.doing.copy(path = newPath)
+                } else {
+                    newDir = directionOf(Pair(kv.x, kv.y), Pair(toward.first.toDouble(), toward.second.toDouble()))
                 }
                 kv.copy(
-                        dir = directionOf(Pair(kv.x.toInt(), kv.y.toInt()), Pair(toward.first, toward.second)),
+                        dir = newDir,
                         x = newX,
                         y = newY,
+                        lastx = kv.x,
+                        lasty = kv.y,
                         doing = newDoing
                 )
             } else {
-                kv
+                kv.copy(dir = CharacterDirection.SOUTH, lastx = kv.x, lasty = kv.y)
             }
         }.map { ch -> Pair(ch.id, ch) }
-        return GameState(logical = logical.copy(characters = logical.characters.plus(updatedCharacters)))
+        val charDispUpdates =
+                updatedCharacters.flatMap { ch ->
+                    val disp = display.characters.get(ch.second.id)
+                    if (disp != null) {
+                        if (ch.second.dir != disp.animation.dir) {
+                            if (ch.second.lastx != ch.second.x || ch.second.lasty != ch.second.y) {
+                                listOf(Pair(ch.second.id, disp.copy(animation = CharacterAnim(ch.second.dir, CharacterAnimType.WALK))))
+                            } else {
+                                listOf(Pair(ch.second.id, disp.copy(animation = CharacterAnim(ch.second.dir, CharacterAnimType.IDLE))))
+                            }
+                        } else {
+                            listOf(Pair(ch.second.id, disp))
+                        }
+                    } else {
+                        listOf()
+                    }
+                }
+        val newlog = logical.copy(characters = logical.characters.plus(updatedCharacters))
+        return GameState(
+                logical = newlog,
+                display = display.copy(
+                        logical = newlog,
+                        characters = display.characters.plus(charDispUpdates)
+                        )
+        )
     }
 }

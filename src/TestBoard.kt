@@ -206,7 +206,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
             fullName = rollName(square)
         }
         chosenNames.add(fullName)
-        characters.put(fullName, Character(fullName, fullName, j.toDouble(), i.toDouble(), charClass, -1, CHAR_START_HP, CharacterDirection.SOUTH, RoutedCommand(logical.hints, Pair(j,i), Command(CommandType.IDLE, Pair(j,i), Pair(j,i)))))
+        characters.put(fullName, Character(fullName, fullName, j.toDouble(), i.toDouble(), j.toDouble(), i.toDouble(), charClass, -1, CHAR_START_HP, CharacterDirection.SOUTH, RoutedCommand(logical.hints, Pair(j,i), Command(CommandType.IDLE, Pair(j,i), Pair(j,i)))))
     }
 
     var assignedTeamLeads = 0

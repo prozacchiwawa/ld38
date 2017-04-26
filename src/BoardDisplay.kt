@@ -272,9 +272,9 @@ fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanv
             val aframes = ArrayList<Int>()
             aframes.plusAssign(animStart.sequence)
             val whichFrame = aframes[Math.floor(frameFrac * aframes.size)]
-            placeCharBigger(assets, dim, ctx, ch.team, whichFrame, disp.value.dispx, disp.value.dispy, 1.5)
-        } else {
-            placeSprite(assets, dim, ctx, CHICKEN_SPRITE, disp.value.dispx, disp.value.dispy)
+            placeCharBigger(assets, dim, ctx, ch.team, whichFrame, ch.x, ch.y, 1.5)
+        } else if (ch != null) {
+            placeSprite(assets, dim, ctx, CHICKEN_SPRITE, ch.x, ch.y)
         }
     }
 

@@ -10,7 +10,7 @@ import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLDivElement
 import java.util.*
 
-val TILE_WALK_TIME = 0.3
+val TILE_WALK_TIME = 0.25
 
 var lastTime = getCurTime()
 
