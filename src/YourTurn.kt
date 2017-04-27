@@ -63,6 +63,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
     var background = makeBaseBoard(state, 1.0, assets)
     var givingOrder : String? = null
     var orderMarker : ClickAnim? = null
+    var showMe : String? = null
 
     var enemyPlans = arrayOf(
             EnemyPlan(1, state, 0.0, mapOf()),
@@ -120,8 +121,6 @@ class YourTurnMode(var state : GameState) : IGameMode {
                 ch.team == team && seatPositions.containsKey(whereOrd)
             }.count())
         }
-        console.log("teamsHoldingSeats $teamsHoldingSeats")
-
         val winningTeam = teamsHoldingSeats.filter { t -> t.second >= 3 }.firstOrNull()
         if (winningTeam != null) {
             return WinMode(winningTeam.first, state)
@@ -157,19 +156,24 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
     override fun click(x : Double, y : Double) {
         val mouse = getMouseTile(x, y)
-        console.log("mouse click", mouse)
-        clickAnims = clickAnims.plus(ClickAnim(x, y, elapsed, 0.0, false, RGBA(255.0, 255.0, 0.0, 0.0)))
         val go = givingOrder
+        clickAnims = clickAnims.plus(ClickAnim(x, y, elapsed, 0.0, false, RGBA(255.0, 255.0, 0.0, 0.0)))
+        showMe = null
         if (go != null) {
             state = state.useCommand(go, Command(CommandType.IDLE, mouse, mouse))
             givingOrder = null
             orderMarker = null
         } else {
             val matchingChar = state.logical.characters.values.filter { ch ->
-                ch.x.toInt() == mouse.first && ch.y.toInt() == mouse.second && ch.team == 0
+                ch.x.toInt() == mouse.first && ch.y.toInt() == mouse.second
             }.take(1).firstOrNull()
             if (matchingChar != null) {
-                givingOrder = matchingChar.id
+                console.log(matchingChar)
+                if (matchingChar.team == 0) {
+                    givingOrder = matchingChar.id
+                } else {
+                    showMe = matchingChar.id
+                }
             }
         }
     }
@@ -242,6 +246,21 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
         for (d in doorSparks) {
             d.render(dim, ctx)
+        }
+
+        val sm = showMe
+        if (sm != null) {
+            val ch = state.logical.characters.get(sm)
+            if (sm != null) {
+                ctx.fillStyle = "rgba(0,0,0,0.5)"
+                ctx.fillRect(0.0,0.0,screenX.toDouble(),screenY.toDouble())
+                val printed = "$ch".split(",")
+                for (p in 0..(printed.size-1)) {
+                    ctx.font = "12px serif"
+                    ctx.fillStyle = "#44ffaa"
+                    ctx.fillText("${printed[p]}", 0.0, (70.0 + 12.0 * p))
+                }
+            }
         }
 
         val om = orderMarker

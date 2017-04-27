@@ -674,7 +674,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                             doing = newDoing
                     )
                 } else if (mustFight != null) {
-                    console.log("Could not fight or pass, have to go around")
                     // Swap roles
                     roleSwaps = roleSwaps.plus(Pair(kv.id, mustFight.id))
                     kv

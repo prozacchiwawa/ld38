@@ -20,14 +20,11 @@ data class EnemyPlan(val team : Int, val state : GameState, val elapsed : Double
         // Update the plan
         val nextTime = elapsed + t
         if (nextTime > RECOMPUTE_TIME) {
-            console.log("Recompute plans for ${team}")
             // Figure out how many recruits we now have
             val recruits = state.logical.characters.values.filter { ch -> ch.team == team }
             var newPlans = unitPlans
             val newRecruits = recruits.filter { ch -> !unitPlans.containsKey(ch.id) }
             var state = state
-
-            console.log("New Recruits: ${newRecruits}")
 
             if (recruits.count() < 6) {
                 // Our focus is recruiting
