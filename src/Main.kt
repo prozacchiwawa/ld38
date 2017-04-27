@@ -11,6 +11,7 @@ import org.w3c.dom.HTMLDivElement
 import java.util.*
 
 val TILE_WALK_TIME = 0.25
+val DOOR_OPEN_TIME = 0.1
 
 var lastTime = getCurTime()
 

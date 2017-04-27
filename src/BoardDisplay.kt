@@ -15,6 +15,8 @@ val COMMAND_SPRITE = 2
 val CONSOLE = 14
 val DOOR_SPARKS = 15
 val DOOR_CLOSED_SPRITE = 20
+val DOOR_OPEN_1_SPRITE = 21
+val DOOR_OPEN_2_SPRITE = 22
 val DOOR_OPEN_SPRITE = 23
 val FLOOR_SPRITE_CORNER = 26
 val FLOOR_SPRITE_EDGE = 27
@@ -251,8 +253,12 @@ fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanv
 
         // Render objects
         var doorSprite = DOOR_CLOSED_SPRITE
-        if (door.open) {
+        if (door.amtOpen > 0.75) {
             doorSprite = DOOR_OPEN_SPRITE
+        } else if (door.amtOpen > 0.50) {
+            doorSprite = DOOR_OPEN_2_SPRITE
+        } else if (door.amtOpen > 0.25) {
+            doorSprite = DOOR_OPEN_1_SPRITE
         }
         var doorAngle = 0.0
         if (door.vertical) {

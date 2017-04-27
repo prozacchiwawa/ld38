@@ -80,9 +80,9 @@ public data class DoorState(
         val hp : Int,
         val type : DoorType,
         val vertical : Boolean,
-        val open : Boolean,
-        val locked : Boolean,
-        val airlock : Boolean
+        val wantState : Boolean,
+        val amtOpen : Double,
+        val locked : Boolean
         )
 
 public data class Square(val role : SquareRole, val assoc : SquareAssoc, val team : Int) { }
@@ -101,7 +101,7 @@ public data class GameBoard(
             val theSquare = square[idx]
             val theDoor = doors.get(Ord(idx))
             if (theDoor != null) {
-                return theDoor.open
+                return theDoor.amtOpen >= 0.75
             } else {
                 return theSquare.role != SquareRole.WALL
             }
@@ -200,7 +200,7 @@ public data class GameStateData(
         ) {
     fun distinctState() : List<EquivPosRecord> {
         val doors = board.doors.values.map { d ->
-            if (d.open) {
+            if (d.amtOpen >= 0.75) {
                 EquivPosRecord(EquivType.OPEN_DOOR, d.x, d.y, 0)
             } else {
                 EquivPosRecord(EquivType.CLOSED_DOOR, d.x, d.y, 0)
@@ -558,6 +558,16 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
     }
 }
 
+fun exaggerate(a : Double, b : Double) : Double {
+    if (a < b) {
+        return a + 0.4
+    } else if (a > b) {
+        return a - 0.4
+    } else {
+        return 0.0
+    }
+}
+
 public class GameState(logical : GameStateData, display : GameDisplay = GameDisplay(logical)) {
     val logical : GameStateData = logical
     var display : GameDisplay = display
@@ -580,6 +590,18 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
     }
 
     fun run(t : Double) : GameState {
+        var updatedDoors = logical.board.doors.entries.map { kv ->
+            if (kv.value.locked) {
+                Pair(kv.key, kv.value.copy(wantState = false))
+            } else if (kv.value.wantState && kv.value.amtOpen < 1.0) {
+                console.log("Stand clear of the opening door ${kv.value}")
+                Pair(kv.key, kv.value.copy(amtOpen = Math.min(1.0, kv.value.amtOpen + t / DOOR_OPEN_TIME)))
+            } else if (!kv.value.wantState && kv.value.amtOpen > 0.0) {
+                Pair(kv.key, kv.value.copy(amtOpen = Math.max(0.0, kv.value.amtOpen - t / DOOR_OPEN_TIME)))
+            } else {
+                Pair(kv.key, kv.value)
+            }
+        }.toMap()
         // For each character that has a pending action, try to move the character closer to where it's going
         val updatedCharacters = logical.characters.values.map { kv ->
             if (kv.doing.path != null && kv.doing.path.size > 0) {
@@ -599,21 +621,34 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 var newDir = kv.dir
                 val newX = makeNewX(kv)
                 val newY = makeNewY(kv)
-                if (newX == toward.first.toDouble() && newY == toward.second.toDouble()) {
-                    val newPath = ArrayList<Pair<Int, Int>>()
-                    newPath.plusAssign(kv.doing.path.drop(1))
-                    newDoing = kv.doing.copy(path = newPath)
-                } else {
-                    newDir = directionOf(Pair(kv.x, kv.y), Pair(toward.first.toDouble(), toward.second.toDouble()))
+                val doorOrd = logical.board.ordOfCoords((newX + 0.4).toInt(), (newY + 0.4).toInt())
+                val door = updatedDoors.get(doorOrd)
+                var replaceDoor : DoorState? = null
+                var canPass = true
+                if (door != null && !door.locked) {
+                    replaceDoor = door.copy(wantState = true)
+                    updatedDoors = updatedDoors.plus(Pair(doorOrd, replaceDoor))
+                    canPass = door.amtOpen >= 0.75
                 }
-                kv.copy(
-                        dir = newDir,
-                        x = newX,
-                        y = newY,
-                        lastx = kv.x,
-                        lasty = kv.y,
-                        doing = newDoing
-                )
+                if (canPass) {
+                    if (newX == toward.first.toDouble() && newY == toward.second.toDouble()) {
+                        val newPath = ArrayList<Pair<Int, Int>>()
+                        newPath.plusAssign(kv.doing.path.drop(1))
+                        newDoing = kv.doing.copy(path = newPath)
+                    } else {
+                        newDir = directionOf(Pair(kv.x, kv.y), Pair(toward.first.toDouble(), toward.second.toDouble()))
+                    }
+                    kv.copy(
+                            dir = newDir,
+                            x = newX,
+                            y = newY,
+                            lastx = kv.x,
+                            lasty = kv.y,
+                            doing = newDoing
+                    )
+                } else {
+                    kv.copy(lastx = kv.x, lasty = kv.y)
+                }
             } else {
                 kv.copy(dir = CharacterDirection.SOUTH, lastx = kv.x, lasty = kv.y)
             }
@@ -635,7 +670,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                         listOf()
                     }
                 }
-        val newlog = logical.copy(characters = logical.characters.plus(updatedCharacters))
+        val newlog = logical.copy(characters = logical.characters.plus(updatedCharacters), board = logical.board.copy(doors = updatedDoors))
         return GameState(
                 logical = newlog,
                 display = display.copy(

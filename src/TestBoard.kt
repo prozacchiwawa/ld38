@@ -122,10 +122,10 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
             if (ch == '#') {
                 boardContents.add(Square(SquareRole.WALL, SquareAssoc.NOASSOC, 0))
             } else if (ch == '|') {
-                doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, true, false, false, false))
+                doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, true, false, 0.0, false))
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else if (ch == '-') {
-                doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, false, false, false, false))
+                doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, false, false, 0.0, false))
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else if (ch == 'E') {
                 commandChairs.put(SquareAssoc.ENGINEERING, Pair(j, i))
