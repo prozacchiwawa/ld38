@@ -8,10 +8,10 @@ import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import java.util.*
 
-data class ClickAnim(val x : Double, val y : Double, val start : Double, val at : Double, val color : RGBA) {
+data class ClickAnim(var x : Double, var y : Double, val start : Double, val at : Double, val repeat : Boolean, val color : RGBA) {
     fun update(t : Double) : ClickAnim? {
         val newTime = this.at + t
-        if (newTime > 0.3) {
+        if (newTime > 0.3 && !repeat) {
             return null
         } else {
             return this.copy(at = this.at + t)
@@ -62,11 +62,14 @@ class YourTurnMode(var state : GameState) : IGameMode {
     var compact = false
     var background = makeBaseBoard(state, 1.0, assets)
     var givingOrder : String? = null
+    var orderMarker : ClickAnim? = null
+
     var enemyPlans = arrayOf(
             EnemyPlan(1, state, 0.0, mapOf()),
             EnemyPlan(2, state, 0.0, mapOf()),
             EnemyPlan(3, state, 0.0, mapOf())
     )
+
     fun updateAnims(t : Double) {
         val empty : List<ClickAnim> = emptyList()
         clickAnims = empty.plus(clickAnims.mapNotNull { kv -> kv.update(t) })
@@ -117,7 +120,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
                 ch.team == team && seatPositions.containsKey(whereOrd)
             }.count())
         }
-        console.log("teamsHoldingSeats ${teamsHoldingSeats}")
+        console.log("teamsHoldingSeats $teamsHoldingSeats")
 
         val winningTeam = teamsHoldingSeats.filter { t -> t.second >= 3 }.firstOrNull()
         if (winningTeam != null) {
@@ -155,14 +158,15 @@ class YourTurnMode(var state : GameState) : IGameMode {
     override fun click(x : Double, y : Double) {
         val mouse = getMouseTile(x, y)
         console.log("mouse click", mouse)
-        clickAnims = clickAnims.plus(ClickAnim(x, y, elapsed, 0.0, RGBA(255.0, 255.0, 0.0, 0.0)))
+        clickAnims = clickAnims.plus(ClickAnim(x, y, elapsed, 0.0, false, RGBA(255.0, 255.0, 0.0, 0.0)))
         val go = givingOrder
         if (go != null) {
             state = state.useCommand(go, Command(CommandType.IDLE, mouse, mouse))
             givingOrder = null
+            orderMarker = null
         } else {
             val matchingChar = state.logical.characters.values.filter { ch ->
-                ch.x.toInt() == mouse.first && ch.y.toInt() == mouse.second
+                ch.x.toInt() == mouse.first && ch.y.toInt() == mouse.second && ch.team == 0
             }.take(1).firstOrNull()
             if (matchingChar != null) {
                 givingOrder = matchingChar.id
@@ -176,7 +180,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val width = boardScale * state.logical.board.dimX * TILESIZE
         val height = boardScale * state.logical.board.dimY * TILESIZE
         val dim = getBoardDim(boardX, boardY, boardScale)
-        console.log("${dim}")
+        console.log("$dim")
         if (dim.boardLeft > (screenX / 4.0)) {
             boardX -= dim.boardLeft - (screenX / 4.0)
         }
@@ -213,6 +217,24 @@ class YourTurnMode(var state : GameState) : IGameMode {
             }
         }
 
+        // Character name
+        val go = givingOrder
+        if (go != null) {
+            ctx.fillStyle = "white"
+            ctx.font = "40px serif"
+            ctx.fillText("Move: $go", 0.0, 40.0)
+            val ch = state.logical.characters.get(go)
+            if (ch != null) {
+                val om = orderMarker
+                if (om == null) {
+                    orderMarker = ClickAnim(dim.boardLeft + (ch.x + 0.5) * TILESIZE, dim.boardTop + (ch.x + 0.5) * TILESIZE, 0.0, 0.0, true, RGBA(0.0, 255.0, 255.0, 0.7))
+                } else {
+                    om.x = dim.boardLeft + (ch.x + 0.5) * TILESIZE
+                    om.y = dim.boardTop + (ch.x + 0.5) * TILESIZE
+                }
+            }
+        }
+
         // Fluff
         for (a in clickAnims) {
             a.render(ctx)
@@ -220,6 +242,11 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
         for (d in doorSparks) {
             d.render(dim, ctx)
+        }
+
+        val om = orderMarker
+        if (om != null) {
+            om.render(ctx)
         }
     }
 

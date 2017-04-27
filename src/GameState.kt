@@ -425,13 +425,13 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
 
     fun followDirection(dir : CharacterDirection, atX : Int, atY : Int) : Pair<Int,Int> {
         if (dir == CharacterDirection.SOUTH) {
-            return Pair<Int, Int>(atX, atY - 1)
+            return Pair(atX, atY - 1)
         } else if (dir == CharacterDirection.NORTH) {
-            return Pair<Int, Int>(atX, atY + 1)
+            return Pair(atX, atY + 1)
         } else if (dir == CharacterDirection.WEST) {
-            return Pair<Int, Int>(atX + 1, atY)
+            return Pair(atX + 1, atY)
         } else {
-            return Pair<Int, Int>(atX - 1, atY)
+            return Pair(atX - 1, atY)
         }
     }
 
@@ -519,7 +519,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
                                 if (pathAB != null) {
                                     val res : ArrayList<Pair<Int,Int>> = ArrayList()
                                     res.plusAssign(pathToFirstDoorA.plus(pathAB.drop(1)).plus(pathToFirstDoorB.reversed().drop(1)))
-                                    // Filter dups
+                                    // Filter duplicates
                                     var i = 0
                                     var j = 0
                                     while (i < res.size) {
@@ -538,7 +538,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
                                         }
                                         i++
                                     }
-                                    console.log("pathfind ${a} -> ${b} = ${res}")
+                                    console.log("path find $a -> $b = $res")
                                     return res
                                 }
                             }
@@ -547,7 +547,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
                 }
             }
         }
-        console.log("pathfind ${a} -> ${b} failed!!")
+        console.log("path find $a -> $b failed!!")
         return null
     }
 }
