@@ -12,6 +12,7 @@ import java.util.*
 
 val TILE_WALK_TIME = 0.25
 val DOOR_OPEN_TIME = 0.1
+val DOOR_CLOSE_TIME = 2.0
 
 var lastTime = getCurTime()
 

@@ -117,6 +117,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
                 ch.team == team && seatPositions.containsKey(whereOrd)
             }.count())
         }
+        console.log("teamsHoldingSeats ${teamsHoldingSeats}")
 
         val winningTeam = teamsHoldingSeats.filter { t -> t.second >= 3 }.firstOrNull()
         if (winningTeam != null) {

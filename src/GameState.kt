@@ -83,6 +83,7 @@ public data class DoorState(
         val vertical : Boolean,
         val wantState : Boolean,
         val amtOpen : Double,
+        val openTime : Double,
         val locked : Boolean
         )
 
@@ -584,21 +585,23 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
 
     fun run(t : Double) : GameState {
         var updatedDoors = logical.board.doors.entries.map { kv ->
-            if (kv.value.locked) {
-                Pair(kv.key, kv.value.copy(wantState = false))
+            if (kv.value.locked || kv.value.openTime + t > DOOR_CLOSE_TIME) {
+                Pair(kv.key, kv.value.copy(wantState = false, openTime = kv.value.openTime + t))
             } else if (kv.value.wantState && kv.value.amtOpen < 1.0) {
                 console.log("Stand clear of the opening door ${kv.value}")
-                Pair(kv.key, kv.value.copy(amtOpen = Math.min(1.0, kv.value.amtOpen + t / DOOR_OPEN_TIME)))
+                Pair(kv.key, kv.value.copy(amtOpen = Math.min(1.0, kv.value.amtOpen + t / DOOR_OPEN_TIME), openTime = kv.value.openTime + t))
             } else if (!kv.value.wantState && kv.value.amtOpen > 0.0) {
-                Pair(kv.key, kv.value.copy(amtOpen = Math.max(0.0, kv.value.amtOpen - t / DOOR_OPEN_TIME)))
+                Pair(kv.key, kv.value.copy(amtOpen = Math.max(0.0, kv.value.amtOpen - t / DOOR_OPEN_TIME), openTime = kv.value.openTime + t))
             } else {
-                Pair(kv.key, kv.value)
+                Pair(kv.key, kv.value.copy(openTime = kv.value.openTime + t))
             }
         }.toMap()
         val characterLocations = logical.characters.values.map { ch ->
             Pair(logical.board.ordOfCoords(ch.x.toInt(), ch.y.toInt()), ch)
         }.toMap()
+
         var tookDamage : Map<String,Pair<Int,Double>> = mapOf()
+        var roleSwaps : Map<String, String> = mapOf()
 
         // For each character that has a pending action, try to move the character closer to where it's going
         var updatedCharacters = logical.characters.values.map { kv ->
@@ -625,14 +628,15 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 var canPass = true
                 var mustFight : Character? = characterLocations.get(doorOrd)
                 if (door != null && !door.locked) {
-                    replaceDoor = door.copy(wantState = true)
+                    replaceDoor = door.copy(wantState = true, openTime = 0.0)
                     updatedDoors = updatedDoors.plus(Pair(doorOrd, replaceDoor))
                     canPass = door.amtOpen >= 0.75
                 }
-                if (mustFight != null && mustFight.id != kv.id) {
-                    canPass = false
-                    if (mustFight.team == kv.team) {
+                if (mustFight != null) {
+                    if (mustFight.id == kv.id) {
                         mustFight = null
+                    } else {
+                        canPass = false
                     }
                 }
                 if (canPass) {
@@ -651,14 +655,14 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                             lasty = kv.y,
                             doing = newDoing
                     )
-                } else if (mustFight != null) {
+                } else if (mustFight != null && mustFight.team != kv.team) {
                     if (kv.doing.path.size == 1) {
                         newDoing = kv.doing.copy(path=arrayListOf())
                     }
                     val whatStats = classStats.get(kv.charclass)
                     val otherStats = classStats.get(mustFight.charclass)
                     if (whatStats != null && otherStats != null) {
-                        val hpDrain = whatStats.attack / otherStats.defense
+                        val hpDrain = BASE_DPS * whatStats.attack / otherStats.defense
                         tookDamage = tookDamage.plus(Pair(mustFight.id, Pair(kv.team, hpDrain)))
                     }
                     kv.copy(
@@ -669,9 +673,13 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                             lasty = kv.y,
                             doing = newDoing
                     )
+                } else if (mustFight != null) {
+                    console.log("Could not fight or pass, have to go around")
+                    // Swap roles
+                    roleSwaps = roleSwaps.plus(Pair(kv.id, mustFight.id))
+                    kv
                 } else {
-                    console.log("Could not fight or pass")
-                    kv.copy(lastx = kv.x, lasty = kv.y)
+                    kv
                 }
             } else {
                 kv.copy(dir = CharacterDirection.SOUTH, lastx = kv.x, lasty = kv.y)
@@ -689,6 +697,13 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 newCharacters = newCharacters.plus(
                         Pair(p.key, currentState.copy(health = newHealth, team = newTeam))
                 )
+            }
+        }
+        for (p in roleSwaps) {
+            val c1 = newCharacters.get(p.key)
+            val c2 = newCharacters.get(p.value)
+            if (c1 != null && c2 != null) {
+                newCharacters = newCharacters.plus(Pair(c1.id, c1.copy(doing = c2.doing))).plus(Pair(c2.id, c2.copy(doing = c1.doing)))
             }
         }
         val charDispUpdates =

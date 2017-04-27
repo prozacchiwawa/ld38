@@ -6,21 +6,6 @@ import java.util.*
  * Created by arty on 4/25/17.
  */
 
-val boardCvt : (dynamic) -> GameBoard = { desc : dynamic ->
-    val dimX : Int = desc.dimX
-    val dimY : Int = desc.dimY
-    val squares : Array<Square> = Array(dimX * dimY, { i ->
-        Square(SquareRole.valueOf(desc.role), SquareAssoc.valueOf(desc.assoc), desc.team)
-    })
-    val doors : MutableMap<Ord, DoorState> = mutableMapOf()
-    for (i in 0..(desc.doors.length - 1)) {
-        val doorDesc = desc.doors[i]
-        val door = DoorState(doorDesc.x, doorDesc.y, doorDesc.hp, DoorType.valueOf(doorDesc.type), doorDesc.vertical, doorDesc.open, doorDesc.locked, doorDesc.airlock)
-        val ord = Ord(door.x + (door.y * dimX))
-        doors[ord] = door
-    }
-    GameBoard(dimX, dimY, squares, doors)
-}
 fun createExports() : dynamic {
     val exports : dynamic = js("new Object()")
     exports.simpleBoardConvert = { s: Array<String> -> simpleBoardConvert(s) }
