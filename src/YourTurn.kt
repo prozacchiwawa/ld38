@@ -62,22 +62,16 @@ class YourTurnMode(var state : GameState) : IGameMode {
     var compact = false
     var background = makeBaseBoard(state, 1.0, assets)
     var givingOrder : String? = null
-
+    var enemyPlans = arrayOf(
+            EnemyPlan(1, state, 0.0, mapOf()),
+            EnemyPlan(2, state, 0.0, mapOf()),
+            EnemyPlan(3, state, 0.0, mapOf())
+    )
     fun updateAnims(t : Double) {
         val empty : List<ClickAnim> = emptyList()
         clickAnims = empty.plus(clickAnims.mapNotNull { kv -> kv.update(t) })
         val ampty : List<SpriteAnim> = emptyList()
         doorSparks = ampty.plus(doorSparks.mapNotNull { kv -> kv.update(t) })
-    }
-
-    fun getHasTurn(chars : Map<String, Character>) : MutableSet<String> {
-        val res : MutableSet<String> = mutableSetOf()
-        for (kv in chars) {
-            if (kv.value.team == 0) {
-                res.add(kv.key)
-            }
-        }
-        return res
     }
 
     override fun runMode(t : Double) : IGameMode {
@@ -104,7 +98,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
         updateAnims(t)
 
         if ((rand() * 90.0).toInt() == 0) {
-            val doors = state.logical.board.doors.filter { d -> d.value.hp == 0 }.toList()
+            val doors = state.logical.board.doors.filter { d -> d.value.hp == 0.0 }.toList()
             if (doors.size > 0) {
                 val theDoor = Math.floor(rand() * doors.size)
                 val door = doors[theDoor]
@@ -116,7 +110,25 @@ class YourTurnMode(var state : GameState) : IGameMode {
         // Run the game state
         state = state.run(t)
 
-        return this
+        val seatPositions = state.logical.chairs.map { chair -> Pair(chair.value,chair.key) }.toMap()
+        val teamsHoldingSeats = (0..3).map { team ->
+            Pair(team, state.logical.characters.values.filter { ch ->
+                val whereOrd = state.logical.board.ordOfCoords(ch.x.toInt(), ch.y.toInt())
+                ch.team == team && seatPositions.containsKey(whereOrd)
+            }.count())
+        }
+
+        val winningTeam = teamsHoldingSeats.filter { t -> t.second >= 3 }.firstOrNull()
+        if (winningTeam != null) {
+            return WinMode(winningTeam.first, state)
+        } else {
+            for (i in (0..2)) {
+                val up = enemyPlans[i].step(t, state)
+                state = up.first
+                enemyPlans[i] = up.second
+            }
+            return this
+        }
     }
 
     override fun getState() : GameState {

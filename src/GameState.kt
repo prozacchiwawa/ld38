@@ -6,8 +6,9 @@ package ldjam.prozacchiwawa
 
 import java.util.*
 
-val DOOR_START_HP = 50
-val CHAR_START_HP = 30
+val DOOR_START_HP = 50.0
+val CHAR_START_HP = 30.0
+val BASE_DPS = 10.0
 
 fun distance(x : Double, y : Double, s : Double, t : Double) : Double {
     val dx = (x - s)
@@ -58,7 +59,7 @@ public data class Character(
         val lasty : Double,
         val charclass : CharClass,
         val team : Int,
-        val health : Int,
+        val health : Double,
         val dir : CharacterDirection,
         val doing : RoutedCommand
         ) {
@@ -77,7 +78,7 @@ public data class Character(
 public data class DoorState(
         val x : Int,
         val y : Int,
-        val hp : Int,
+        val hp : Double,
         val type : DoorType,
         val vertical : Boolean,
         val wantState : Boolean,
@@ -471,7 +472,6 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
         if (a == b) {
             return ArrayList<Pair<Int,Int>>(listOf(Pair(a.first.toInt(),a.second.toInt())))
         }
-        console.log("pathfind",a,b)
         val doorA = board.doors.values.sortedBy { door ->
             distance(a.first, a.second, door.x.toDouble(), door.y.toDouble())
         }.firstOrNull()
@@ -482,10 +482,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
         if (doorA != null && doorB != null) {
             val agrad = towardDoor[board.ordOfCoords(doorA.x, doorA.y)]
             val bgrad = towardDoor[board.ordOfCoords(doorB.x, doorB.y)]
-            console.log(agrad, bgrad)
             if (agrad != null && bgrad != null) {
-                console.log("A\n"+showgradient(agrad)+"\n")
-                console.log("B\n"+showgradient(bgrad)+"\n")
                 val pathToDoorA = followGradient(agrad, a.first.toInt(), a.second.toInt())
                 val pathToDoorB = followGradient(bgrad, b.first.toInt(), b.second.toInt())
                 // Truncate each path at the first door it crosses in case it isn't the closest in space distance
@@ -508,8 +505,6 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
                             pathToFirstDoorB.add(v)
                         }
                     }
-                    console.log("toA",pathToFirstDoorA)
-                    console.log("toB",pathToFirstDoorB)
                     if (pathToFirstDoorA.size > 0 && pathToFirstDoorB.size > 0) {
                         val lastA = pathToFirstDoorA.last()
                         val lastB = pathToFirstDoorB.last()
@@ -517,13 +512,9 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
                             return pathfind(board, a.first, a.second, b.first, b.second)
                         } else {
                             // pathToFirstDoorA + pathFromDoorAToDoorB + pathToFirstDoorB.reverse()
-                            console.log(lastA,lastB)
                             val abgrad = towardDoor[board.ordOfCoords(lastB.first, lastB.second)]
-                            console.log(abgrad)
                             if (abgrad != null) {
-                                console.log("AB\n"+showgradient(abgrad)+"\n")
                                 val pathAB = followGradient(abgrad, lastA.first, lastA.second)
-                                console.log("pathAB",pathAB)
                                 if (pathAB != null) {
                                     val res : ArrayList<Pair<Int,Int>> = ArrayList()
                                     res.plusAssign(pathToFirstDoorA.plus(pathAB.drop(1)).plus(pathToFirstDoorB.reversed().drop(1)))
@@ -546,6 +537,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
                                         }
                                         i++
                                     }
+                                    console.log("pathfind ${a} -> ${b} = ${res}")
                                     return res
                                 }
                             }
@@ -554,6 +546,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc,Ord>) {
                 }
             }
         }
+        console.log("pathfind ${a} -> ${b} failed!!")
         return null
     }
 }
@@ -602,8 +595,13 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 Pair(kv.key, kv.value)
             }
         }.toMap()
+        val characterLocations = logical.characters.values.map { ch ->
+            Pair(logical.board.ordOfCoords(ch.x.toInt(), ch.y.toInt()), ch)
+        }.toMap()
+        var tookDamage : Map<String,Pair<Int,Double>> = mapOf()
+
         // For each character that has a pending action, try to move the character closer to where it's going
-        val updatedCharacters = logical.characters.values.map { kv ->
+        var updatedCharacters = logical.characters.values.map { kv ->
             if (kv.doing.path != null && kv.doing.path.size > 0) {
                 var toward = kv.doing.path[0]
                 var makeNewX = { kv: Character -> kv.x }
@@ -625,10 +623,17 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 val door = updatedDoors.get(doorOrd)
                 var replaceDoor : DoorState? = null
                 var canPass = true
+                var mustFight : Character? = characterLocations.get(doorOrd)
                 if (door != null && !door.locked) {
                     replaceDoor = door.copy(wantState = true)
                     updatedDoors = updatedDoors.plus(Pair(doorOrd, replaceDoor))
                     canPass = door.amtOpen >= 0.75
+                }
+                if (mustFight != null && mustFight.id != kv.id) {
+                    canPass = false
+                    if (mustFight.team == kv.team) {
+                        mustFight = null
+                    }
                 }
                 if (canPass) {
                     if (newX == toward.first.toDouble() && newY == toward.second.toDouble()) {
@@ -646,13 +651,46 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                             lasty = kv.y,
                             doing = newDoing
                     )
+                } else if (mustFight != null) {
+                    if (kv.doing.path.size == 1) {
+                        newDoing = kv.doing.copy(path=arrayListOf())
+                    }
+                    val whatStats = classStats.get(kv.charclass)
+                    val otherStats = classStats.get(mustFight.charclass)
+                    if (whatStats != null && otherStats != null) {
+                        val hpDrain = whatStats.attack / otherStats.defense
+                        tookDamage = tookDamage.plus(Pair(mustFight.id, Pair(kv.team, hpDrain)))
+                    }
+                    kv.copy(
+                            dir = newDir,
+                            x = newX,
+                            y = newY,
+                            lastx = kv.x,
+                            lasty = kv.y,
+                            doing = newDoing
+                    )
                 } else {
+                    console.log("Could not fight or pass")
                     kv.copy(lastx = kv.x, lasty = kv.y)
                 }
             } else {
                 kv.copy(dir = CharacterDirection.SOUTH, lastx = kv.x, lasty = kv.y)
             }
         }.map { ch -> Pair(ch.id, ch) }
+        var newCharacters = logical.characters.plus(updatedCharacters)
+        for (p in tookDamage.entries) {
+            val currentState = newCharacters.get(p.key)
+            if (currentState != null) {
+                val newHealth = Math.max(currentState.health - p.value.second, 1.0)
+                var newTeam = currentState.team
+                if (newHealth == 1.0) {
+                    newTeam = p.value.first
+                }
+                newCharacters = newCharacters.plus(
+                        Pair(p.key, currentState.copy(health = newHealth, team = newTeam))
+                )
+            }
+        }
         val charDispUpdates =
                 updatedCharacters.flatMap { ch ->
                     val disp = display.characters.get(ch.second.id)
@@ -670,7 +708,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                         listOf()
                     }
                 }
-        val newlog = logical.copy(characters = logical.characters.plus(updatedCharacters), board = logical.board.copy(doors = updatedDoors))
+        val newlog = logical.copy(characters = newCharacters, board = logical.board.copy(doors = updatedDoors))
         return GameState(
                 logical = newlog,
                 display = display.copy(
