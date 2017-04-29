@@ -5,7 +5,7 @@
 package ldjam.prozacchiwawa
 
 import org.w3c.dom.CharacterData
-import java.util.*
+import kotlin.js.Math
 
 val normalRanks : ArrayList<String> =
         arrayListOf("crewman", "ensign", "chief")
@@ -206,7 +206,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
             fullName = rollName(square)
         }
         chosenNames.add(fullName)
-        characters.put(fullName, Character(fullName, fullName, j.toDouble(), i.toDouble(), j.toDouble(), i.toDouble(), charClass, -1, CHAR_START_HP, CharacterDirection.SOUTH, RoutedCommand(logical.hints, Pair(j,i), Command(CommandType.IDLE, Pair(j,i), Pair(j,i)))))
+        characters.put(fullName, Character(fullName, fullName, j.toDouble() + 0.5, i.toDouble() + 0.5, j.toDouble() + 0.5, i.toDouble() + 0.5, charClass, -1, CHAR_START_HP, CharacterDirection.SOUTH, RoutedCommand(logical.hints, Pair(j,i), Command(CommandType.IDLE, Pair(j,i), Pair(j,i)))))
     }
 
     var assignedTeamLeads = 0

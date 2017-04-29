@@ -5,7 +5,9 @@
 package ldjam.prozacchiwawa
 
 import org.w3c.dom.CanvasRenderingContext2D
-import java.util.*
+import org.w3c.dom.CanvasTextBaseline
+import org.w3c.dom.TOP
+import kotlin.js.Math
 
 val textSpacingVert = 5.0
 val menuBorderSize = 5.0
@@ -61,7 +63,7 @@ data class Menu<T>(val selections : ArrayList<Pair<String,T>>, val tall : Double
         val pl = Rect(left, top, width + 2.0 * menuBorderSize, height + 2.0 * menuBorderSize)
         placed = pl
 
-        ctx.textBaseline = "top"
+        ctx.textBaseline = CanvasTextBaseline.TOP
         ctx.fillStyle = menuColor
         ctx.fillRect(pl.left, pl.top, pl.width, pl.height)
         ctx.strokeStyle = "white"

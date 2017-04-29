@@ -8,7 +8,6 @@ import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLDivElement
-import java.util.*
 
 val TILE_WALK_TIME = 0.25
 val DOOR_OPEN_TIME = 0.1

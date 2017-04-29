@@ -4,7 +4,7 @@
 
 package ldjam.prozacchiwawa
 
-import java.util.*
+import kotlin.js.Math
 
 val DOOR_START_HP = 50.0
 val CHAR_START_HP = 30.0

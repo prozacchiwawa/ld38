@@ -9,7 +9,6 @@ import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.ImageBitmap
 import org.w3c.dom.events.EventListener
-import java.util.*
 
 val TILESIZE = 128.0
 

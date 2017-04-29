@@ -1,7 +1,5 @@
 package ldjam.prozacchiwawa
 
-import java.util.*
-
 /**
  * Created by arty on 4/25/17.
  */
@@ -97,12 +95,8 @@ fun createExports() : dynamic {
                 val loc = locAndCmd[0].split(",")
                 val toward = locAndCmd[1].split(",")
                 val action = CommandType.valueOf(locAndCmd[2])
-                var dir : CharacterDirection? = null
-                if (locAndCmd.size > 2) {
-                    dir = CharacterDirection.valueOf(locAndCmd[3])
-                }
-                val locPair = Pair(parseInt(loc[0]), parseInt(loc[1]))
-                val towardPair = Pair(parseInt(toward[0]), parseInt(toward[1]))
+                val locPair = Pair(loc[0].toInt(), loc[1].toInt())
+                val towardPair = Pair(toward[0].toInt(), toward[1].toInt())
                 val who = state.logical.characters.get(name)
                 if (who != null) {
                     state.useCommand(who.id, Command(action, locPair, towardPair))

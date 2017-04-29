@@ -6,7 +6,7 @@ package ldjam.prozacchiwawa
 
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
-import java.util.*
+import kotlin.js.Math
 
 data class ClickAnim(var x : Double, var y : Double, val start : Double, val at : Double, val repeat : Boolean, val color : RGBA) {
     fun update(t : Double) : ClickAnim? {
@@ -64,6 +64,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
     var givingOrder : String? = null
     var orderMarker : ClickAnim? = null
     var showMe : String? = null
+    var paused : Boolean = false
 
     var enemyPlans = arrayOf(
             EnemyPlan(1, state, 0.0, mapOf()),
@@ -112,7 +113,9 @@ class YourTurnMode(var state : GameState) : IGameMode {
         }
 
         // Run the game state
-        state = state.run(t)
+        if (!paused) {
+            state = state.run(t)
+        }
 
         val seatPositions = state.logical.chairs.map { chair -> Pair(chair.value,chair.key) }.toMap()
         val teamsHoldingSeats = (0..3).map { team ->

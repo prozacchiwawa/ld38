@@ -4,10 +4,13 @@
 
 package ldjam.prozacchiwawa
 
+import org.khronos.webgl.get
+import org.khronos.webgl.set
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.ImageBitmap
 import org.w3c.dom.ImageData
+import kotlin.js.Math
 
 // My brother made the character art with a green vest to indicate team.
 // the method we thought of to chroma key these was to detect pixel color by HLS value

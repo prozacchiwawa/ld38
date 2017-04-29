@@ -4,10 +4,9 @@
 
 package ldjam.prozacchiwawa
 
-import org.w3c.dom.CanvasImageSource
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
-import java.util.*
+import kotlin.js.Math
 
 val CHICKEN_SPRITE = 0
 val BED_SPRITE = 1
@@ -63,14 +62,14 @@ val charAnimations =
         )
 
 fun placeSprite(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double) {
-    var imageSource : CanvasImageSource = assets.sprites.asDynamic()
+    var imageSource = assets.sprites.asDynamic()
     var spx = spriteId % 20
     var spy = spriteId / 20
     ctx.drawImage(imageSource, spx * TILESIZE, spy * TILESIZE, TILESIZE, TILESIZE, dim.boardLeft + x * dim.tileSize, dim.boardTop + y * dim.tileSize, dim.tileSize, dim.tileSize)
 }
 
 fun placeSpriteBigger(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double, scale : Double) {
-    val imageSource : CanvasImageSource = assets.sprites.asDynamic()
+    val imageSource = assets.sprites.asDynamic()
     var spx = spriteId % 20
     var spy = spriteId / 20
     val originX = dim.boardLeft + x * dim.tileSize + (dim.tileSize / 2.0)
@@ -91,7 +90,7 @@ fun placeCharBigger(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContex
 }
 
 fun placeSpriteRotated(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, spriteId : Int, x : Double, y : Double, angle : Double) {
-    var imageSource : CanvasImageSource = assets.sprites.asDynamic()
+    var imageSource = assets.sprites.asDynamic()
     var spx = spriteId % 20
     var spy = spriteId / 20
     ctx.save()
@@ -121,7 +120,7 @@ val roomColors =
                 Pair(SquareAssoc.SECURITY, "rgba(112, 68, 70, 0.3)")
         )
 
-val workStationSchemes = mapOf(
+val workStationSchemes : Map<Int, Array<Pair<Int,Double>>> = mapOf(
         Pair(0, arrayOf()),
         Pair(1, arrayOf()),
         Pair(2, arrayOf()),
@@ -135,12 +134,12 @@ val workStationSchemes = mapOf(
         Pair(10, arrayOf(Pair(WALL_LONG, 90.0))),
         Pair(11, arrayOf(Pair(WALL_LONG, 90.0), Pair(CONSOLE, 90.0))),
         Pair(12, arrayOf(Pair(WALL_CORNER, -90.0))),
-        Pair(13, arrayOf(Pair(WALL_LONG, 0), Pair(CONSOLE, 0.0))),
+        Pair(13, arrayOf(Pair(WALL_LONG, 0.0), Pair(CONSOLE, 0.0))),
         Pair(14, arrayOf(Pair(WALL_LONG, 90.0), Pair(CONSOLE, -90.0))),
-        Pair(15, arrayOf(Pair(WALL_LONG, 0), Pair(WALL_LONG, 90.0)))
+        Pair(15, arrayOf(Pair(WALL_LONG, 0.0), Pair(WALL_LONG, 90.0)))
 )
 
-val wallSchemes = mapOf(
+val wallSchemes : Map<Int, Array<Pair<Int,Double>>> = mapOf(
         Pair(0, arrayOf()),
         Pair(1, arrayOf()),
         Pair(2, arrayOf()),
@@ -154,9 +153,9 @@ val wallSchemes = mapOf(
         Pair(10, arrayOf(Pair(WALL_LONG, 90.0))),
         Pair(11, arrayOf(Pair(WALL_CORNER, 90.0), Pair(WALL_LONG, 90.0))),
         Pair(12, arrayOf(Pair(WALL_CORNER, -90.0))),
-        Pair(13, arrayOf(Pair(WALL_CORNER, -90.0), Pair(WALL_LONG, 0))),
+        Pair(13, arrayOf(Pair(WALL_CORNER, -90.0), Pair(WALL_LONG, 0.0))),
         Pair(14, arrayOf(Pair(WALL_CORNER, -90.0), Pair(WALL_LONG, 90.0))),
-        Pair(15, arrayOf(Pair(WALL_LONG, 0), Pair(WALL_LONG, 90.0)))
+        Pair(15, arrayOf(Pair(WALL_LONG, 0.0), Pair(WALL_LONG, 90.0)))
 )
 
 fun drawBaseBoard(ctx : CanvasRenderingContext2D, state : GameState, assets : Assets) {
@@ -191,9 +190,11 @@ fun drawBaseBoard(ctx : CanvasRenderingContext2D, state : GameState, assets : As
             }
             if (board.square[ord.idx].role == SquareRole.WALL) {
                 val neighbors = board.getNeighborsWithDoors(j, i)
-                val scheme = wallSchemes.get(neighbors)
-                for (w in scheme) {
-                    placeSpriteRotated(assets, dim, ctx, w.first, j.toDouble(), i.toDouble(), w.second)
+                val scheme = wallSchemes[neighbors]
+                if (scheme != null) {
+                    for (w in scheme) {
+                        placeSpriteRotated(assets, dim, ctx, w.first, j.toDouble(), i.toDouble(), w.second)
+                    }
                 }
             } else if (board.square[ord.idx].role == SquareRole.WORK_STATION) {
                 var neighbors = board.getNeighborsWithDoors(j, i)
@@ -202,9 +203,11 @@ fun drawBaseBoard(ctx : CanvasRenderingContext2D, state : GameState, assets : As
                 } else if (i == board.dimY - 1) {
                     neighbors = neighbors.or(8)
                 }
-                val scheme = workStationSchemes.get(neighbors)
-                for (w in scheme) {
-                    placeSpriteRotated(assets, dim, ctx, w.first, j.toDouble(), i.toDouble(), w.second)
+                val scheme = workStationSchemes[neighbors]
+                if (scheme != null) {
+                    for (w in scheme) {
+                        placeSpriteRotated(assets, dim, ctx, w.first, j.toDouble(), i.toDouble(), w.second)
+                    }
                 }
             }
             val roomColor = roomColors.get(board.square[ord.idx].assoc)
@@ -278,9 +281,11 @@ fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanv
             val aframes = ArrayList<Int>()
             aframes.plusAssign(animStart.sequence)
             val whichFrame = aframes[Math.floor(frameFrac * aframes.size)]
-            placeCharBigger(assets, dim, ctx, ch.team, whichFrame, ch.x, ch.y, 1.5)
+            val scaleFactor = 1.5
+            val offset = 0.5 * scaleFactor
+            placeCharBigger(assets, dim, ctx, ch.team, whichFrame, ch.x - offset, ch.y - offset, scaleFactor)
         } else if (ch != null) {
-            placeSprite(assets, dim, ctx, CHICKEN_SPRITE, ch.x, ch.y)
+            placeSprite(assets, dim, ctx, CHICKEN_SPRITE, ch.x - 0.5, ch.y - 0.5)
         }
     }
 

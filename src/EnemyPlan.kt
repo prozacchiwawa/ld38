@@ -4,7 +4,7 @@
 
 package ldjam.prozacchiwawa
 
-import java.util.*
+import kotlin.js.Math
 
 val RECOMPUTE_TIME = 1.0
 
