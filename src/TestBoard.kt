@@ -206,7 +206,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
         while (characters.contains(fullName)) {
             fullName = rollName(square)
         }
-        val ord = board.ordOfIdx(idx)
+        val ord = board.ordOfIdx(idx).add(0.5,0.5)
         chosenNames.add(fullName)
         characters.put(fullName, Character(fullName, fullName, ord, ord, charClass, -1, CHAR_START_HP, CharacterDirection.SOUTH, RoutedCommand(logical.hints, null, Command(CommandType.IDLE, ord, ord))))
     }

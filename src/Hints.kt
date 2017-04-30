@@ -58,6 +58,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
     fun followGradient(gradient : Array<CharacterDirection?>, at : Ord) : ArrayList<Ord>? {
         var count = 0
         val res : ArrayList<Ord> = arrayListOf()
+        console.log("followGradient from $at")
         var start = gradient[at.idx]
         var where = at
         if (start == null) {
@@ -113,28 +114,32 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
                 if (pathToDoorA != null && pathToDoorB != null) {
                     val pathToFirstDoorA = ArrayList<Ord>()
                     for (v in pathToDoorA.asIterable()) {
+                        pathToFirstDoorA.add(v)
                         if (board.doors.containsKey(v.idx)) {
-                            pathToFirstDoorA.add(v.add(0.5,0.5))
                             break
-                        } else {
-                            pathToFirstDoorA.add(v.add(0.5,0.5))
                         }
                     }
                     val pathToFirstDoorB = ArrayList<Ord>()
                     for (v in pathToDoorB.asIterable()) {
+                        pathToFirstDoorB.add(v)
                         if (board.doors.containsKey(v.idx)) {
-                            pathToFirstDoorB.add(v.add(0.5,0.5))
                             break
-                        } else {
-                            pathToFirstDoorB.add(v.add(0.5,0.5))
                         }
                     }
                     if (pathToFirstDoorA.size > 0 && pathToFirstDoorB.size > 0) {
                         val lastA = pathToFirstDoorA.last()
                         val lastB = pathToFirstDoorB.last()
-                        if (lastA == lastB) {
+                        if (towardDoor[lastB.idx] == null) {
+                            console.log("Path to first door didn't lead to a door!")
+                            console.log("towardDoor $towardDoor")
+                            console.log("pathToDoorB $pathToDoorB")
+                            console.log("pathToFirstDoorB $pathToFirstDoorB")
+                        }
+                        if (lastA.idx == lastB.idx) {
                             return pathfind(state, a, b)
                         } else {
+                            console.log("lastA $lastA")
+                            console.log("lastB $lastB")
                             // pathToFirstDoorA + pathFromDoorAToDoorB + pathToFirstDoorB.reverse()
                             val abgrad = towardDoor[lastB.idx]
                             if (abgrad != null) {
@@ -163,11 +168,25 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
                                     }
                                     console.log("path find $a -> $b = $res")
                                     return res
+                                } else {
+                                    console.log("pathAB $pathAB")
                                 }
+                            } else {
+                                console.log("have ${towardDoor.keys}")
+                                console.log("abgrad $abgrad")
                             }
                         }
+                    } else {
+                        console.log("pathToFirstDoorA $pathToFirstDoorA")
+                        console.log("pathToFirstDoorB $pathToFirstDoorB")
                     }
+                } else {
+                    console.log("pathToDoorA $pathToDoorA")
+                    console.log("pathToDoorB $pathToDoorB")
                 }
+            } else {
+                console.log("agrad $agrad")
+                console.log("bgrad $bgrad")
             }
         }
         console.log("path find $a -> $b failed!!")

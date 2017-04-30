@@ -394,8 +394,8 @@ fun directionOf(a : Ord, b : Ord) : CharacterDirection {
 
 data class PathComponent(val prev: PathComponent?, val open: Boolean, val me: Ord) {}
 
-fun addIfPassable(state : GameStateData, who : Character, first: PathComponent, visited: ArrayList<PathComponent>) {
-    if (state.isPassable(who)) {
+fun addIfPassable(state : GameStateData, who : Character, first: PathComponent, visited: ArrayList<PathComponent>, used : Set<Int>) {
+    if (state.isPassable(who) && !used.contains(who.at.idx)) {
         visited.add(PathComponent(first, false, who.at))
     }
 }
@@ -404,11 +404,13 @@ fun pathfind(state : GameStateData, who : Character, to : Ord): ArrayList<Ord>? 
     val at = who.at
     val want = to
     val visited: ArrayList<PathComponent> = arrayListOf()
+    var used : Set<Int> = setOf()
     visited.add(PathComponent(null, false, at))
     while (visited.count() > 0) {
         val first = visited[0]
         visited.removeAt(0)
-        if (first.me == want) {
+        used = used.plus(first.me.idx)
+        if (first.me.idx == want.idx) {
             val al: ArrayList<Ord> = arrayListOf()
             var f: PathComponent? = first
             while (f != null) {
@@ -417,10 +419,10 @@ fun pathfind(state : GameStateData, who : Character, to : Ord): ArrayList<Ord>? 
             }
             return al
         }
-        addIfPassable(state, who.copy(at=first.me.add(-1.0, 0.0)), first, visited)
-        addIfPassable(state, who.copy(at=first.me.add(1.0, 0.0)), first, visited)
-        addIfPassable(state, who.copy(at=first.me.add(0.0, -1.0)), first, visited)
-        addIfPassable(state, who.copy(at=first.me.add(0.0, 1.0)), first, visited)
+        addIfPassable(state, who.copy(at=first.me.add(-1.0, 0.0)), first, visited, used)
+        addIfPassable(state, who.copy(at=first.me.add(1.0, 0.0)), first, visited, used)
+        addIfPassable(state, who.copy(at=first.me.add(0.0, -1.0)), first, visited, used)
+        addIfPassable(state, who.copy(at=first.me.add(0.0, 1.0)), first, visited, used)
     }
     return null
 }
@@ -466,6 +468,9 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
 
         // For each character that has a pending action, try to move the character closer to where it's going
         var updatedCharacters = logical.getCharacters().values.map { kv ->
+            if (kv.team == 0) {
+                console.log(kv)
+            }
             if (kv.doing.path != null && kv.doing.path.size > 0) {
                 var toward = kv.doing.path[0]
                 var makeNew = { kv: Character -> kv }
@@ -505,7 +510,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 console.log("canPass ${canPass}")
 
                 if (canPass) {
-                    if (distance(newAt.at.x, newAt.at.y, toward.x, toward.y) > 0.1) {
+                    if (distance(newAt.at.x, newAt.at.y, toward.x, toward.y) < 0.25) {
                         val newPath = ArrayList<Ord>()
                         newPath.plusAssign(kv.doing.path.drop(1))
                         newDoing = kv.doing.copy(path = newPath)

@@ -154,11 +154,9 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
     fun getMouseTile(x : Double, y : Double) : Ord {
         val dim = getBoardDim(boardX, boardY, boardScale)
-        val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
-        val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
-        val xdim = Math.floor(boardX / boardScale)
-        val idx = (yTile / xdim) + xTile
-        return Ord(idx, (x - dim.boardLeft) / dim.tileSize, (y - dim.boardTop) / dim.tileSize, xdim)
+        val xTile = (x - dim.boardLeft) / dim.tileSize
+        val yTile = (y - dim.boardTop) / dim.tileSize
+        return state.logical.board.ordOfCoords(xTile, yTile)
     }
 
     override fun click(x : Double, y : Double) {
@@ -205,7 +203,6 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val width = boardScale * state.logical.board.dimX * TILESIZE
         val height = boardScale * state.logical.board.dimY * TILESIZE
         val dim = getBoardDim(boardX, boardY, boardScale)
-        console.log("$dim")
         if (dim.boardLeft > (screenX / 4.0)) {
             boardX -= dim.boardLeft - (screenX / 4.0)
         }
