@@ -4,9 +4,11 @@
 
 package ldjam.prozacchiwawa
 
-import org.w3c.dom.CanvasRenderingContext2D
-import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.*
 import kotlin.js.Math
+
+val PAUSE_BUTTON_TEXT = 30.0
+val PAUSE_BUTTON_MARGIN = 7.5
 
 data class ClickAnim(var x : Double, var y : Double, val start : Double, val at : Double, val repeat : Boolean, val color : RGBA) {
     fun update(t : Double) : ClickAnim? {
@@ -29,7 +31,7 @@ data class ClickAnim(var x : Double, var y : Double, val start : Double, val at 
     }
 }
 
-class SpriteAnim(val frames : Iterable<Int>, val duration : Double, val x : Int, val y : Int) {
+class SpriteAnim(val frames : Iterable<Int>, val duration : Double, val x : Double, val y : Double) {
     var elapsed = 0.0
     val frameList = frames.toList()
 
@@ -64,7 +66,8 @@ class YourTurnMode(var state : GameState) : IGameMode {
     var givingOrder : String? = null
     var orderMarker : ClickAnim? = null
     var showMe : String? = null
-    var paused : Boolean = false
+    var paused : Boolean = true
+    var pausedRect : Rect? = null
 
     var enemyPlans = arrayOf(
             EnemyPlan(1, state, 0.0, mapOf()),
@@ -107,8 +110,8 @@ class YourTurnMode(var state : GameState) : IGameMode {
             if (doors.size > 0) {
                 val theDoor = Math.floor(rand() * doors.size)
                 val door = doors[theDoor]
-                val coords = state.logical.board.coordsOfOrd(door.first)
-                doorSparks = doorSparks.plus(SpriteAnim(15..19, 0.5, coords.first, coords.second))
+                val ord = state.logical.board.ordOfIdx(door.first)
+                doorSparks = doorSparks.plus(SpriteAnim(15..19, 0.5, ord.x, ord.y))
             }
         }
 
@@ -120,8 +123,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val seatPositions = state.logical.chairs.map { chair -> Pair(chair.value,chair.key) }.toMap()
         val teamsHoldingSeats = (0..3).map { team ->
             Pair(team, state.logical.characters.values.filter { ch ->
-                val whereOrd = state.logical.board.ordOfCoords(ch.x.toInt(), ch.y.toInt())
-                ch.team == team && seatPositions.containsKey(whereOrd)
+                ch.team == team && seatPositions.containsKey(ch.at)
             }.count())
         }
         val winningTeam = teamsHoldingSeats.filter { t -> t.second >= 3 }.firstOrNull()
@@ -150,11 +152,13 @@ class YourTurnMode(var state : GameState) : IGameMode {
         return BoardDim(left, top, renderWidth, renderHeight, TILESIZE * boardScale)
     }
 
-    fun getMouseTile(x : Double, y : Double) : Pair<Int,Int> {
+    fun getMouseTile(x : Double, y : Double) : Ord {
         val dim = getBoardDim(boardX, boardY, boardScale)
         val xTile = Math.floor((x - dim.boardLeft) / dim.tileSize)
         val yTile = Math.floor((y - dim.boardTop) / dim.tileSize)
-        return Pair(xTile, yTile)
+        val xdim = Math.floor(boardX / boardScale)
+        val idx = (yTile / xdim) + xTile
+        return Ord(idx, (x - dim.boardLeft) / dim.tileSize, (y - dim.boardTop) / dim.tileSize, xdim)
     }
 
     override fun click(x : Double, y : Double) {
@@ -162,13 +166,22 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val go = givingOrder
         clickAnims = clickAnims.plus(ClickAnim(x, y, elapsed, 0.0, false, RGBA(255.0, 255.0, 0.0, 0.0)))
         showMe = null
+
+        val pr = pausedRect
+        if (pr != null) {
+            if (pr.inside(x,y)) {
+                paused = !paused
+                return
+            }
+        }
+
         if (go != null) {
             state = state.useCommand(go, Command(CommandType.IDLE, mouse, mouse))
             givingOrder = null
             orderMarker = null
         } else {
             val matchingChar = state.logical.characters.values.filter { ch ->
-                ch.x.toInt() == mouse.first && ch.y.toInt() == mouse.second
+                ch.at.idx == mouse.idx
             }.take(1).firstOrNull()
             if (matchingChar != null) {
                 console.log(matchingChar)
@@ -234,10 +247,10 @@ class YourTurnMode(var state : GameState) : IGameMode {
             if (ch != null) {
                 val om = orderMarker
                 if (om == null) {
-                    orderMarker = ClickAnim(dim.boardLeft + (ch.x + 0.5) * TILESIZE, dim.boardTop + (ch.x + 0.5) * TILESIZE, 0.0, 0.0, true, RGBA(0.0, 255.0, 255.0, 0.7))
+                    orderMarker = ClickAnim(dim.boardLeft + (ch.at.x * TILESIZE), dim.boardTop + (ch.at.y * TILESIZE), 0.0, 0.0, true, RGBA(0.0, 255.0, 255.0, 0.7))
                 } else {
-                    om.x = dim.boardLeft + (ch.x + 0.5) * TILESIZE
-                    om.y = dim.boardTop + (ch.x + 0.5) * TILESIZE
+                    om.x = dim.boardLeft + (ch.at.x * TILESIZE)
+                    om.y = dim.boardTop + (ch.at.y * TILESIZE)
                 }
             }
         }
@@ -269,6 +282,25 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val om = orderMarker
         if (om != null) {
             om.render(ctx)
+        }
+
+        ctx.font = "${PAUSE_BUTTON_TEXT}px Serif"
+        val pausedTm = ctx.measureText("PAUSED")
+        val pauseTm = ctx.measureText("PAUSE")
+        val pr = Rect(((screenX - pausedTm.width) / 2.0) - PAUSE_BUTTON_MARGIN,0.0,pausedTm.width + (2.0 * PAUSE_BUTTON_MARGIN),PAUSE_BUTTON_TEXT + (2.0 * PAUSE_BUTTON_MARGIN))
+        pausedRect = pr
+        if (paused) {
+            ctx.fillStyle = "rgb(41, 160, 20)"
+            ctx.fillRect(pr.left, pr.top, pr.width, pr.height)
+            ctx.fillStyle = "white"
+            ctx.textBaseline = CanvasTextBaseline.TOP
+            ctx.fillText("PAUSED", (screenX - pausedTm.width) / 2.0, PAUSE_BUTTON_MARGIN)
+        } else {
+            ctx.fillStyle = "rgb(198, 43, 15)"
+            ctx.fillRect(pr.left, pr.top, pr.width, pr.height)
+            ctx.fillStyle = "white"
+            ctx.textBaseline = CanvasTextBaseline.TOP
+            ctx.fillText("PAUSE", (screenX - pauseTm.width) / 2.0, PAUSE_BUTTON_MARGIN)
         }
     }
 

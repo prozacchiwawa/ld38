@@ -12,7 +12,7 @@ enum class Intention {
     Guard, Recruit, Command, Special
 }
 
-data class PlanInfo(val intention : Intention, val posTarget : Pair<Double,Double>?, val charTarget : String?) {
+data class PlanInfo(val intention : Intention, val posTarget : Ord, val charTarget : String?) {
 }
 
 data class EnemyPlan(val team : Int, val state : GameState, val elapsed : Double, val unitPlans : Map<String,PlanInfo>) {
@@ -36,9 +36,9 @@ data class EnemyPlan(val team : Int, val state : GameState, val elapsed : Double
                     val randomToFollow = Math.floor(rand() * unfollowed.size)
                     var ch = unfollowed[randomToFollow]
                     console.log("recruit ${ch}")
-                    newPlans = newPlans.plus(Pair(r.id, PlanInfo(Intention.Recruit, posTarget = Pair(ch.x, ch.y), charTarget = ch.id)))
+                    newPlans = newPlans.plus(Pair(r.id, PlanInfo(Intention.Recruit, posTarget = ch.at, charTarget = ch.id)))
                     console.log("recruit with ${r}")
-                    state = state.useCommand(r.id, Command(CommandType.ATTACK, Pair(ch.x.toInt(), ch.y.toInt()), Pair(ch.x.toInt(), ch.y.toInt())))
+                    state = state.useCommand(r.id, Command(CommandType.ATTACK, ch.at, ch.at))
                     unfollowed.removeAt(randomToFollow)
                 }
             } else {
@@ -55,31 +55,33 @@ data class EnemyPlan(val team : Int, val state : GameState, val elapsed : Double
                         val whereAmI = state.logical.characters.get(randomNonCommandPicked.first)
                         if (whereAmI != null) {
                             val closeChair = state.logical.chairs.values.sortedBy { k ->
-                                val coords = state.logical.board.coordsOfOrd(k)
-                                distance(coords.first.toDouble(), coords.second.toDouble(), whereAmI.x, whereAmI.y)
+                                val coords = Pair(k.x, k.y)
+                                distance(coords.first, coords.second, whereAmI.at.x, whereAmI.at.y)
                             }.firstOrNull()
                             if (closeChair != null) {
-                                val coords = state.logical.board.coordsOfOrd(closeChair)
-                                newPlans = newPlans.plus(Pair(randomNonCommandPicked.first, PlanInfo(Intention.Command, charTarget = null, posTarget = Pair(coords.first.toDouble(), coords.second.toDouble()))))
-                                state = state.useCommand(randomNonCommandPicked.first, Command(CommandType.IDLE, Pair(whereAmI.x.toInt(), whereAmI.y.toInt()), Pair(whereAmI.x.toInt(), whereAmI.y.toInt())))
+                                val coords = Pair(closeChair.x, closeChair.y)
+                                newPlans = newPlans.plus(
+                                        Pair(randomNonCommandPicked.first, PlanInfo(Intention.Command, charTarget = null, posTarget = state.logical.board.ordOfCoords(coords)))
+                                )
+                                state = state.useCommand(randomNonCommandPicked.first, Command(CommandType.IDLE, whereAmI.at, whereAmI.at))
                             }
                         }
                     }
                     // Move recruits near our claimed chairs
                     for (n in newRecruits) {
                         // Find neighbors of a chair we want
-                        val chairsWeWant = ArrayList<Pair<Int, Int>>(newPlans.values.filter { p -> p.intention == Intention.Command }.flatMap { p ->
+                        val chairsWeWant = ArrayList<Ord>(newPlans.values.filter { p -> p.intention == Intention.Command }.flatMap { p ->
                             if (p.posTarget != null) {
-                                listOf(Pair(p.posTarget.first.toInt(), p.posTarget.second.toInt()))
+                                listOf(p.posTarget)
                             } else {
                                 listOf()
                             }
                         })
                         val randomChairNum = Math.floor(rand() * chairsWeWant.size)
                         val randomChair = chairsWeWant[randomChairNum]
-                        val neighbors = ArrayList<Pair<Int, Int>>(bitsToNeighbors(state.logical.board.getNeighbors(randomChair.first, randomChair.second).xor(15), randomChair).toList())
+                        val neighbors = ArrayList<Ord>(bitsToNeighbors(state.logical.board.getNeighbors(randomChair).xor(15), randomChair).toList())
                         val chosenPt = neighbors[Math.floor(rand() * neighbors.size)]
-                        newPlans = newPlans.plus(Pair(n.id, PlanInfo(Intention.Guard, Pair(chosenPt.first.toDouble(), chosenPt.second.toDouble()), null)))
+                        newPlans = newPlans.plus(Pair(n.id, PlanInfo(Intention.Guard, chosenPt, null)))
                         state = state.useCommand(n.id, Command(CommandType.ATTACK, chosenPt, chosenPt))
                     }
                 }

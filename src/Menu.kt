@@ -13,7 +13,11 @@ val textSpacingVert = 5.0
 val menuBorderSize = 5.0
 val menuColor = "#3d6649"
 
-data class Rect(val left : Double, val top : Double, val width : Double, val height : Double) { }
+data class Rect(val left : Double, val top : Double, val width : Double, val height : Double) {
+    fun inside(x : Double, y : Double) : Boolean {
+        return x >= left && x <= (x + width) && y >= top && y <= (top + height)
+    }
+}
 
 data class Menu<T>(val selections : ArrayList<Pair<String,T>>, val tall : Double, val sep : Double, val near : Rect) {
     var placed : Rect? = null

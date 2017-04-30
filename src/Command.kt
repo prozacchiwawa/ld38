@@ -8,5 +8,5 @@ enum class CommandType {
     IDLE, ATTACK, SPECIAL, SUPER
 }
 
-data class Command(val type : CommandType, val at : Pair<Int, Int>, val toward : Pair<Int,Int>) {
+data class Command(val type : CommandType, val at : Ord, val toward : Ord) {
 }

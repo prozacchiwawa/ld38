@@ -14,26 +14,24 @@ fun createExports() : dynamic {
             o.name = ch.name
             o.team = ch.team
             o.health = ch.health
-            o.x = ch.x
-            o.y = ch.y
+            o.x = ch.at.x
+            o.y = ch.at.y
             r.push(o)
         }
         r
     }
     exports.showBoard = { s: GameState ->
         var res = ArrayList<String>()
-        var chars = s.logical.characters.values.map { ch ->
-            Pair(s.logical.board.ordOfCoords(ch.x.toInt(), ch.y.toInt()), ch.team)
-        }.toMap()
+        var chars = s.logical.characters.values.map { ch -> Pair(ch.at, ch.team) }.toMap()
 
         for (i in 0..(s.logical.board.dimY - 1)) {
             if (i != 0) {
                 res.add("\n")
             }
             for (j in 0..(s.logical.board.dimX - 1)) {
-                val ord = s.logical.board.ordOfCoords(j, i)
+                val ord = s.logical.board.ordOfCoords(j.toDouble() + 0.5, i.toDouble() + 0.5)
                 val sq = s.logical.board.square[ord.idx]
-                val door = s.logical.board.doors.get(ord)
+                val door = s.logical.board.doors[ord.idx]
                 if (door != null) {
                     if (door.vertical) {
                         res.add("|")
@@ -95,8 +93,8 @@ fun createExports() : dynamic {
                 val loc = locAndCmd[0].split(",")
                 val toward = locAndCmd[1].split(",")
                 val action = CommandType.valueOf(locAndCmd[2])
-                val locPair = Pair(loc[0].toInt(), loc[1].toInt())
-                val towardPair = Pair(toward[0].toInt(), toward[1].toInt())
+                val locPair = state.logical.board.ordOfCoords(loc[0].toDouble(), loc[1].toDouble())
+                val towardPair = state.logical.board.ordOfCoords(toward[0].toDouble(), toward[1].toDouble())
                 val who = state.logical.characters.get(name)
                 if (who != null) {
                     state.useCommand(who.id, Command(action, locPair, towardPair))
@@ -110,8 +108,8 @@ fun createExports() : dynamic {
             "Exception: " + e.toString()
         }
     }
-    exports.pathfind = {state : GameState, ax : Double, ay : Double, bx : Double, by : Double ->
-        val p = state.logical.hints.pathfind(Pair(ax,ay), Pair(bx,by))
+    exports.pathfind = {state : GameState, a : Ord, b : Ord ->
+        val p = state.logical.hints.pathfind(a, b)
         console.log("p",p)
         if (p != null) {
             p.toTypedArray()

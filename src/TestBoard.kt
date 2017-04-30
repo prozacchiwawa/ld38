@@ -108,8 +108,8 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
     }
     val boardContents = ArrayList<Square>()
     val commandChairs : MutableMap<SquareAssoc, Pair<Int, Int>> = mutableMapOf()
-    val doors : MutableMap<Ord, DoorState> = mutableMapOf()
-    val spawns : MutableSet<Ord> = mutableSetOf()
+    val doors : MutableMap<Int, DoorState> = mutableMapOf()
+    val spawns : MutableSet<Int> = mutableSetOf()
 
     for (i in 0..(ydim - 1)) {
         for (j in 0..(xdim - 1)) {
@@ -119,13 +119,14 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
                 ch = st[j]
             }
             val idx = (i * xdim) + j
+            val ord = Ord(idx, j.toDouble() + 0.5, i.toDouble() + 0.5, xdim)
             if (ch == '#') {
                 boardContents.add(Square(SquareRole.WALL, SquareAssoc.NOASSOC, 0))
             } else if (ch == '|') {
-                doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, true, false, 0.0, lastTime, false))
+                doors.put(ord.idx, DoorState(ord, DOOR_START_HP, DoorType.INTERIOR, true, false, 0.0, lastTime, false))
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else if (ch == '-') {
-                doors.put(Ord(idx), DoorState(j, i, DOOR_START_HP, DoorType.INTERIOR, false, false, 0.0, lastTime, false))
+                doors.put(ord.idx, DoorState(ord, DOOR_START_HP, DoorType.INTERIOR, false, false, 0.0, lastTime, false))
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else if (ch == 'E') {
                 commandChairs.put(SquareAssoc.ENGINEERING, Pair(j, i))
@@ -155,7 +156,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
             } else if (ch == '=') {
                 boardContents.add(Square(SquareRole.HEALING_BED, SquareAssoc.MEDICAL, 0))
             } else if (ch == 'X') {
-                spawns.add(Ord(idx))
+                spawns.add(ord.idx)
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
             } else {
                 boardContents.add(Square(SquareRole.NOROLE, SquareAssoc.NOASSOC, 0))
@@ -179,7 +180,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
             nextPoint.remove(pt)
             var idx = (pt.second * xdim) + pt.first
             val sq = getSquare(xdim, boardContents, pt.first, pt.second)
-            val door = doors.get(Ord(idx))
+            val door = doors[idx]
             if (door == null && sq.role != SquareRole.WALL && sq.role != SquareRole.WORK_STATION) {
                 boardContents[idx] = boardContents[idx].copy(assoc = coord.key)
                 gonext(Pair(pt.first - 1, pt.second))
@@ -196,24 +197,25 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
     val board = GameBoard(xdim, ydim, boardContents.toTypedArray(), doors)
     var logical = GameStateData(mapOf(), board)
 
-    for (ord in spawns) {
-        var i = ord.idx / xdim
-        var j = ord.idx % xdim
-        val square = boardContents[ord.idx]
+    for (idx in spawns) {
+        var i = idx / xdim
+        var j = idx % xdim
+        val square = boardContents[idx]
         val charClass = charClassFromAssoc(square.assoc)
         var fullName = rollName(square)
         while (characters.contains(fullName)) {
             fullName = rollName(square)
         }
+        val ord = board.ordOfIdx(idx)
         chosenNames.add(fullName)
-        characters.put(fullName, Character(fullName, fullName, j.toDouble() + 0.5, i.toDouble() + 0.5, j.toDouble() + 0.5, i.toDouble() + 0.5, charClass, -1, CHAR_START_HP, CharacterDirection.SOUTH, RoutedCommand(logical.hints, Pair(j,i), Command(CommandType.IDLE, Pair(j,i), Pair(j,i)))))
+        characters.put(fullName, Character(fullName, fullName, ord, ord, charClass, -1, CHAR_START_HP, CharacterDirection.SOUTH, RoutedCommand(logical.hints, ord, Command(CommandType.IDLE, ord, ord))))
     }
 
     var assignedTeamLeads = 0
     while (assignedTeamLeads < 4) {
         // Select a character randomly to be the player char's starting faction member
         val whoAmI = chosenNames[Math.floor(rand() * chosenNames.size)]
-        val myChar = characters.get(whoAmI)
+        val myChar = characters[whoAmI]
         if (myChar != null && myChar.team == -1) {
             characters.put(whoAmI, myChar.copy(team = assignedTeamLeads++))
         }
@@ -223,7 +225,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
 }
 
 fun testBoard() : GameState {
-    return simpleBoardConvert(
+    val res = simpleBoardConvert(
             arrayOf(
                 "######l#######s###############e#####",
                 "#####  X # X    S#     E   X       #",
@@ -238,4 +240,8 @@ fun testBoard() : GameState {
                 "###########m##################b#####"
             )
     )
+    if (!res.logical.board.doors.containsKey(res.logical.board.ordOfCoords(7.0, 3.0).idx)) {
+        throw Exception("ORD NOT LOOKING UP")
+    }
+    return res
 }

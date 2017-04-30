@@ -167,8 +167,8 @@ fun drawBaseBoard(ctx : CanvasRenderingContext2D, state : GameState, assets : As
     ctx.fillRect(dim.boardLeft, dim.boardTop, dim.boardWidth, dim.boardHeight)
     for (i in 0..(board.dimY - 1)) {
         for (j in 0..(board.dimX - 1)) {
-            val ord = board.ordOfCoords(j, i)
-            val door = board.doors.get(ord)
+            val ord = board.ordOfCoords(j.toDouble(), i.toDouble())
+            val door = board.doors.get(ord.idx)
             if (i == 0 && j == 0) {
                 placeSpriteRotated(assets, dim, ctx, FLOOR_SPRITE_CORNER, 0.0, 0.0, -90.0)
             } else if (i == board.dimY - 1 && j == 0) {
@@ -189,7 +189,7 @@ fun drawBaseBoard(ctx : CanvasRenderingContext2D, state : GameState, assets : As
                 placeSprite(assets, dim, ctx, FLOOR_SPRITE, j.toDouble(), i.toDouble())
             }
             if (board.square[ord.idx].role == SquareRole.WALL) {
-                val neighbors = board.getNeighborsWithDoors(j, i)
+                val neighbors = board.getNeighborsWithDoors(ord)
                 val scheme = wallSchemes[neighbors]
                 if (scheme != null) {
                     for (w in scheme) {
@@ -197,7 +197,7 @@ fun drawBaseBoard(ctx : CanvasRenderingContext2D, state : GameState, assets : As
                     }
                 }
             } else if (board.square[ord.idx].role == SquareRole.WORK_STATION) {
-                var neighbors = board.getNeighborsWithDoors(j, i)
+                var neighbors = board.getNeighborsWithDoors(ord)
                 if (i == 0) {
                     neighbors = neighbors.or(2)
                 } else if (i == board.dimY - 1) {
@@ -248,11 +248,8 @@ fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanv
     ctx.drawImage(base, leftSide, upperSide, renderWidth, renderHeight)
 
     for (kv in board.doors) {
-        val ord = kv.key
+        val ord = board.ordOfIdx(kv.key)
         val door = kv.value
-        val p = board.coordsOfOrd(ord)
-        val i = p.second
-        val j = p.first
 
         // Render objects
         var doorSprite = DOOR_CLOSED_SPRITE
@@ -267,7 +264,7 @@ fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanv
         if (door.vertical) {
             doorAngle = 90.0
         }
-        placeSpriteRotated(assets, dim, ctx, doorSprite, j.toDouble(), i.toDouble(), doorAngle)
+        placeSpriteRotated(assets, dim, ctx, doorSprite, ord.x, ord.y, doorAngle)
     }
 
     // Render people
@@ -283,9 +280,9 @@ fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanv
             val whichFrame = aframes[Math.floor(frameFrac * aframes.size)]
             val scaleFactor = 1.5
             val offset = 0.5 * scaleFactor
-            placeCharBigger(assets, dim, ctx, ch.team, whichFrame, ch.x - offset, ch.y - offset, scaleFactor)
+            placeCharBigger(assets, dim, ctx, ch.team, whichFrame, ch.at.x, ch.at.y - 0.25, scaleFactor)
         } else if (ch != null) {
-            placeSprite(assets, dim, ctx, CHICKEN_SPRITE, ch.x - 0.5, ch.y - 0.5)
+            placeSprite(assets, dim, ctx, CHICKEN_SPRITE, ch.at.x - 0.5, ch.at.y - 0.25)
         }
     }
 
