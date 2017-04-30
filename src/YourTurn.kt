@@ -68,6 +68,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
     var showMe : String? = null
     var paused : Boolean = true
     var pausedRect : Rect? = null
+    var sel : Ord? = null
 
     var enemyPlans = arrayOf(
             EnemyPlan(1, state, 0.0, mapOf()),
@@ -120,13 +121,20 @@ class YourTurnMode(var state : GameState) : IGameMode {
             state = state.run(t)
         }
 
-        val seatPositions = state.logical.chairs.map { chair -> Pair(chair.value,chair.key) }.toMap()
+        val seatPositions = state.logical.chairs.map { chair -> Pair(chair.value.idx,chair.key) }.toMap()
+        console.log("seatPositions $seatPositions")
         val teamsHoldingSeats = (0..3).map { team ->
             Pair(team, state.logical.getCharacters().values.filter { ch ->
-                ch.team == team && seatPositions.containsKey(ch.at)
+                ch.team == team && seatPositions.containsKey(ch.at.idx)
             }.count())
         }
+        console.log("teamsHoldingSeats $teamsHoldingSeats")
+        val yourGuys = state.logical.getCharacters().values.filter { ch -> ch.team == 0 }.count()
+        if (yourGuys < 1) {
+            return WinMode(-1, state)
+        }
         val winningTeam = teamsHoldingSeats.filter { t -> t.second >= 3 }.firstOrNull()
+        console.log("winningTeam $winningTeam")
         if (winningTeam != null) {
             return WinMode(winningTeam.first, state)
         } else {
@@ -219,6 +227,11 @@ class YourTurnMode(var state : GameState) : IGameMode {
         this.boardY = boardY
     }
 
+    override fun move(x : Double, y : Double) {
+        val mouse = getMouseTile(x, y)
+        sel = mouse
+    }
+
     override fun render(ctx : CanvasRenderingContext2D) {
         val board = state.logical.board
         val dim = getBoardDim(boardX, boardY, boardScale)
@@ -284,6 +297,14 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val om = orderMarker
         if (om != null) {
             om.render(ctx)
+        }
+
+        val s = sel
+        if (s != null) {
+            val tx = Math.floor(s.x)
+            val ty = Math.floor(s.y)
+            ctx.fillStyle = "rgba(255,255,128,0.5)"
+            ctx.fillRect(dim.boardLeft + (Math.floor(s.x) * dim.tileSize), dim.boardTop + (Math.floor(s.y) * dim.tileSize), dim.tileSize, dim.tileSize)
         }
 
         ctx.font = "${PAUSE_BUTTON_TEXT}px Serif"

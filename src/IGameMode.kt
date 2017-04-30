@@ -12,4 +12,5 @@ interface IGameMode {
     abstract fun render(ctx : CanvasRenderingContext2D)
     abstract fun click(x : Double, y : Double)
     abstract fun drag(x : Double, y : Double, u : Double, v : Double)
+    abstract fun move(x : Double, y : Double)
 }

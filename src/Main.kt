@@ -107,6 +107,8 @@ class GameAnimator(var mode : IGameMode) {
                             mode.drag(evt.clientX, evt.clientY, ms.first, ms.second)
                         }
                     }
+                } else {
+                    mode.move(evt.clientX, evt.clientY)
                 }
             }
         })

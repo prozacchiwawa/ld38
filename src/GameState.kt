@@ -86,8 +86,9 @@ public data class Character(
         val team : Int,
         val health : Double,
         val dir : CharacterDirection,
-        val doing : RoutedCommand
-        ) : IObjGetPos {
+        val doing : RoutedCommand,
+        val cool : Double
+) : IObjGetPos {
     fun availMoves() : Int {
         var moves = 3
         if (health < CHAR_START_HP * 0.3) {
@@ -414,7 +415,7 @@ fun pathfind(state : GameStateData, who : Character, to : Ord): ArrayList<Ord>? 
             val al: ArrayList<Ord> = arrayListOf()
             var f: PathComponent? = first
             while (f != null) {
-                al.add(0, f.me.add(0.5,0.5))
+                al.add(0, f.me)
                 f = f.prev
             }
             return al
@@ -467,10 +468,9 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
 
         // For each character that has a pending action, try to move the character closer to where it's going
         var updatedCharacters = logical.getCharacters().values.map { kv ->
-            if (kv.team == 0) {
-                console.log(kv)
-            }
-            if (kv.doing.path != null && kv.doing.path.size > 0) {
+            if (kv.cool > 0.0) {
+                kv.copy(cool=Math.max(kv.cool - t, 0.0))
+            } else if (kv.doing.path != null && kv.doing.path.size > 0) {
                 var toward = kv.doing.path[0]
                 var makeNew = { kv: Character -> kv }
                 if (kv.at.x < toward.x) {
@@ -590,15 +590,15 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                     newTeam = p.value.first
                 }
                 newCharacters = newCharacters.plus(
-                        Pair(p.key, currentState.copy(health = newHealth, team = newTeam))
+                        Pair(p.key, currentState.copy(health = newHealth, team = newTeam, cool = rand() * 0.1))
                 )
             }
         }
         for (p in roleSwaps) {
-            val c1 = newCharacters.get(p.key)
-            val c2 = newCharacters.get(p.value)
+            val c1 = newCharacters[p.key]
+            val c2 = newCharacters[p.value]
             if (c1 != null && c2 != null) {
-                newCharacters = newCharacters.plus(Pair(c1.id, c1.copy(doing = c2.doing))).plus(Pair(c2.id, c2.copy(doing = c1.doing)))
+                newCharacters = newCharacters.plus(Pair(c1.id, c1.copy(doing = c2.doing, cool=rand() * 0.3))).plus(Pair(c2.id, c2.copy(doing = c1.doing)))
             }
         }
         val charDispUpdates =

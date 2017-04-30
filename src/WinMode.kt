@@ -28,7 +28,11 @@ class WinMode(val team : Int, var state : GameState) : IGameMode {
         if (team != 0) {
             s1 = "rgba(255,0,0,0.6)"
             s2 = "white"
-            txt = "Team ${team} wins"
+            if (team == -1) {
+                txt = "You lost"
+            } else {
+                txt = "Team ${team} wins"
+            }
         }
 
         ctx.fillStyle = s1
@@ -36,8 +40,10 @@ class WinMode(val team : Int, var state : GameState) : IGameMode {
         ctx.fillStyle = s2
         ctx.font = "40px sans"
         val m = ctx.measureText(txt)
-        ctx.fillText(txt, screenX - (m.width / 2.0), screenY - 20.0)
+        ctx.fillText(txt, (screenX - m.width) / 2.0, (screenY - 20.0) / 2.0)
     }
     override fun click(x : Double, y : Double) { }
     override fun drag(x : Double, y : Double, u : Double, v : Double) { }
+    override fun move(x: Double, y: Double) {
+    }
 }
