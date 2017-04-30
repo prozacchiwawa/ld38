@@ -318,6 +318,16 @@ public data class GameStateData(
         val collisions = collision.collide(ch.id, ch)
         return board.isPassable(ch.at) && collisions.size == 0
     }
+
+    class CharWrapperLargerRadius(val ch : Character, val newRadius : Double) : IObjGetPos {
+        override fun getPos(): ObjPos {
+            return ch.getPos().copy(size = newRadius)
+        }
+    }
+
+    fun getAdjacent(ch : Character) : Set<String> {
+        return collision.collide(ch.id, CharWrapperLargerRadius(ch, 0.5))
+    }
 }
 
 public data class DoorDisplayState(
@@ -452,6 +462,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
 
         var tookDamage : Map<String,Pair<Int,Double>> = mapOf()
         var roleSwaps : Map<String, String> = mapOf()
+        var fighting : Set<String> = setOf()
 
         // For each character that has a pending action, try to move the character closer to where it's going
         var updatedCharacters = logical.getCharacters().values.map { kv ->
@@ -494,7 +505,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 console.log("canPass ${canPass}")
 
                 if (canPass) {
-                    if (newAt.at.idx == toward.idx) {
+                    if (distance(newAt.at.x, newAt.at.y, toward.x, toward.y) > 0.1) {
                         val newPath = ArrayList<Ord>()
                         newPath.plusAssign(kv.doing.path.drop(1))
                         newDoing = kv.doing.copy(path = newPath)
@@ -525,6 +536,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                     if (whatStats != null && otherStats != null) {
                         val hpDrain = BASE_DPS * whatStats.attack / otherStats.defense
                         tookDamage = tookDamage.plus(Pair(randomCharToFight.id, Pair(kv.team, hpDrain)))
+                        fighting = fighting.plus(kv.id)
                     }
                     newAt.copy(
                             dir = newDir,
@@ -542,7 +554,30 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                     kv
                 }
             } else {
-                kv.copy(dir = CharacterDirection.SOUTH, lastAt = kv.at)
+                val adjacent = logical.getAdjacent(kv)
+                val adjacentToFight = adjacent.filter { id ->
+                    val ch = logical.getCharacters()[id]
+                    ch != null && ch.team != kv.team && kv.team != -1
+                }
+                val randomCharsToFight : List<Character> = adjacentToFight.toList().flatMap { id ->
+                    val ch = logical.getCharacters()[id]
+                    if (ch != null) {
+                        listOf(ch)
+                    } else {
+                        listOf()
+                    }
+                }
+                if (randomCharsToFight.size > 0) {
+                    val randomCharToFight = randomCharsToFight[Math.floor(rand() * randomCharsToFight.size)]
+                    val whatStats = classStats[kv.charclass]
+                    val otherStats = classStats[randomCharToFight.charclass]
+                    if (whatStats != null && otherStats != null) {
+                        val hpDrain = BASE_DPS * whatStats.attack / otherStats.defense
+                        tookDamage = tookDamage.plus(Pair(randomCharToFight.id, Pair(kv.team, hpDrain)))
+                        fighting = fighting.plus(kv.id)
+                    }
+                }
+                kv
             }
         }.map { ch -> Pair(ch.id, ch) }
         var newCharacters = logical.getCharacters().plus(updatedCharacters)
@@ -573,6 +608,8 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                         if (ch.second.dir != disp.animation.dir) {
                             if (ch.second.lastAt != ch.second.at) {
                                 listOf(Pair(ch.second.id, disp.copy(animation = CharacterAnim(ch.second.dir, CharacterAnimType.WALK))))
+                            } else if (fighting.contains(ch.second.id)) {
+                                listOf(Pair(ch.second.id, disp.copy(animation = CharacterAnim(ch.second.dir, CharacterAnimType.FIGHT))))
                             } else {
                                 listOf(Pair(ch.second.id, disp.copy(animation = CharacterAnim(ch.second.dir, CharacterAnimType.IDLE))))
                             }

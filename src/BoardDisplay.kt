@@ -82,8 +82,8 @@ fun placeSpriteBigger(assets : Assets, dim : BoardDim, ctx : CanvasRenderingCont
 fun placeCharBigger(assets : Assets, dim : BoardDim, ctx : CanvasRenderingContext2D, team : Int, spriteId : Int, x : Double, y : Double, scale : Double) {
     val idx = team * 10000 + spriteId
     val imageSource = assets.paletteSwaps[idx].asDynamic()
-    val originX = dim.boardLeft + x * dim.tileSize + (dim.tileSize / 2.0)
-    val originY = dim.boardTop + y * dim.tileSize + (dim.tileSize / 2.0)
+    val originX = dim.boardLeft + x * dim.tileSize
+    val originY = dim.boardTop + y * dim.tileSize
     val drawAtX = originX - (scale * dim.tileSize / 2.0)
     val drawAtY = originY - (scale * dim.tileSize / 2.0)
     ctx.drawImage(imageSource, 0.0, 0.0, TILESIZE, TILESIZE, drawAtX, drawAtY, dim.tileSize * scale, dim.tileSize * scale)
@@ -280,7 +280,7 @@ fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanv
             val whichFrame = aframes[Math.floor(frameFrac * aframes.size)]
             val scaleFactor = 1.5
             val offset = 0.5 * scaleFactor
-            placeCharBigger(assets, dim, ctx, ch.team, whichFrame, ch.at.x, ch.at.y - 0.25, scaleFactor)
+            placeCharBigger(assets, dim, ctx, ch.team, whichFrame, ch.at.x, ch.at.y, scaleFactor)
         } else if (ch != null) {
             placeSprite(assets, dim, ctx, CHICKEN_SPRITE, ch.at.x - 0.5, ch.at.y - 0.25)
         }

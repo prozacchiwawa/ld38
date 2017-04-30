@@ -177,12 +177,17 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
         if (go != null) {
             state = state.useCommand(go, Command(CommandType.IDLE, mouse, mouse))
+            showMe = null
             givingOrder = null
             orderMarker = null
         } else {
-            val matchingChar = state.logical.getCharacters().values.filter { ch ->
-                ch.at.idx == mouse.idx
-            }.take(1).firstOrNull()
+            val matchingChar = state.logical.getCollision().collide("", object : IObjGetPos {
+                override fun getPos(): ObjPos { return ObjPos(mouse.x, mouse.y, 0.0, 0.1) }
+            }).flatMap { name ->
+                val ch = state.logical.getCharacters()[name]
+                if (ch != null) { listOf(ch) } else { listOf() }
+            }.firstOrNull()
+
             if (matchingChar != null) {
                 console.log(matchingChar)
                 if (matchingChar.team == 0) {

@@ -221,7 +221,11 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
         }
     }
 
-    return GameState(GameStateData(board, characters = characters))
+    var collision = OctreeNode(null, Box(arrayOf(arrayOf(0.0,0.0,-10.0), arrayOf(xdim.toDouble(), ydim.toDouble(), 10.0))))
+    for (ch in characters.values) {
+        collision = collision.insert(ch.id, ch, false)
+    }
+    return GameState(GameStateData(board, characters = characters, collision = collision))
 }
 
 fun testBoard() : GameState {
