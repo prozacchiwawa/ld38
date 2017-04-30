@@ -28,7 +28,6 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
             }
             arr[chair.idx] = null
         }
-        console.log(showgradient(arr))
         return arr
     }
     val towardCommand = SquareAssoc.values().flatMap({ x ->
@@ -58,7 +57,6 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
     fun followGradient(gradient : Array<CharacterDirection?>, at : Ord) : ArrayList<Ord>? {
         var count = 0
         val res : ArrayList<Ord> = arrayListOf()
-        console.log("followGradient from $at")
         var start = gradient[at.idx]
         var where = at
         if (start == null) {
@@ -69,7 +67,6 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
                 res.add(where)
                 where = followDirection(start, where)
                 start = gradient[where.idx]
-                console.log("where $where")
                 count += 1
                 if (count > 1000) { throw Exception("Bad Following") }
             }
@@ -96,7 +93,6 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
             return arrayListOf(a.at)
         }
         // Find the closest door to each
-        console.log("pathfind $a $b")
         val doorA = board.doors.values.sortedBy { door ->
             distance(a.at.x, a.at.y, door.ord.x, door.ord.y)
         }.firstOrNull()
@@ -138,8 +134,6 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
                         if (lastA.idx == lastB.idx) {
                             return pathfind(state, a, b)
                         } else {
-                            console.log("lastA $lastA")
-                            console.log("lastB $lastB")
                             // pathToFirstDoorA + pathFromDoorAToDoorB + pathToFirstDoorB.reverse()
                             val abgrad = towardDoor[lastB.idx]
                             if (abgrad != null) {

@@ -453,7 +453,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
             if (kv.value.locked || kv.value.openTime + t > DOOR_CLOSE_TIME) {
                 Pair(kv.key, kv.value.copy(wantState = false, openTime = kv.value.openTime + t))
             } else if (kv.value.wantState && kv.value.amtOpen < 1.0) {
-                console.log("Stand clear of the opening door ${kv.value}")
                 Pair(kv.key, kv.value.copy(amtOpen = Math.min(1.0, kv.value.amtOpen + t / DOOR_OPEN_TIME), openTime = kv.value.openTime + t))
             } else if (!kv.value.wantState && kv.value.amtOpen > 0.0) {
                 Pair(kv.key, kv.value.copy(amtOpen = Math.max(0.0, kv.value.amtOpen - t / DOOR_OPEN_TIME), openTime = kv.value.openTime + t))
@@ -490,9 +489,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 var replaceDoor : DoorState? = null
                 var canPass = true
                 var mustFightChars : Set<String> = logical.getCollision().collide(kv.id, newAt)
-                if (mustFightChars.size > 0) {
-                    console.log("$kv oppose $mustFightChars")
-                }
                 if (door != null && !door.locked) {
                     replaceDoor = door.copy(wantState = true, openTime = 0.0)
                     updatedDoors = updatedDoors.plus(Pair(newAt.at.idx, replaceDoor))
@@ -507,8 +503,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 }
                 mustFightChars = mustFightChars.minus(passMyTeam)
 
-                console.log("canPass ${canPass}")
-
                 if (canPass) {
                     if (distance(newAt.at.x, newAt.at.y, toward.x, toward.y) < 0.25) {
                         val newPath = ArrayList<Ord>()
@@ -517,13 +511,13 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                     } else {
                         newDir = directionOf(kv.at, toward)
                     }
-                    console.log("Return with at=${newAt.at} last=${kv.at}")
                     newAt.copy(
                             dir = newDir,
                             lastAt = kv.at,
                             doing = newDoing
                     )
                 } else if (mustFightChars.size > 0) {
+                    val newAt = newAt.copy(at = kv.at)
                     if (kv.doing.path.size == 1) {
                         newDoing = kv.doing.copy(path=arrayListOf())
                     }
@@ -549,6 +543,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                             doing = newDoing
                     )
                 } else if (passMyTeam.size == 1) {
+                    val newAt = newAt.copy(at = kv.at)
                     // Swap roles
                     val mustPass = passMyTeam.firstOrNull()
                     if (mustPass != null) {
