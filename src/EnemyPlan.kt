@@ -21,7 +21,7 @@ data class EnemyPlan(val team : Int, val state : GameState, val elapsed : Double
         val nextTime = elapsed + t
         if (nextTime > RECOMPUTE_TIME) {
             // Figure out how many recruits we now have
-            val recruits = state.logical.characters.values.filter { ch -> ch.team == team }
+            val recruits = state.logical.getCharacters().values.filter { ch -> ch.team == team }
             var newPlans = unitPlans
             val newRecruits = recruits.filter { ch -> !unitPlans.containsKey(ch.id) }
             var state = state
@@ -30,7 +30,7 @@ data class EnemyPlan(val team : Int, val state : GameState, val elapsed : Double
                 // Our focus is recruiting
                 // Check whether any are new to us
                 val followed = unitPlans.values.map { p -> p.charTarget }.toSet()
-                val unfollowed = ArrayList <Character>(state.logical.characters.values.filter { ch -> ch.team != team && !followed.contains(ch.id) }.sortedBy { ch -> ch.team })
+                val unfollowed = ArrayList <Character>(state.logical.getCharacters().values.filter { ch -> ch.team != team && !followed.contains(ch.id) }.sortedBy { ch -> ch.team })
                 for (r in newRecruits) {
                     // Pick a target nobody else is following yet.
                     val randomToFollow = Math.floor(rand() * unfollowed.size)
@@ -52,7 +52,7 @@ data class EnemyPlan(val team : Int, val state : GameState, val elapsed : Double
                         val randomNonCommandPicked = nonCommandUsers[randomNonCommandUser]
                         nonCommandUsers.removeAt(randomNonCommandUser)
                         // find the closest command chair
-                        val whereAmI = state.logical.characters.get(randomNonCommandPicked.first)
+                        val whereAmI = state.logical.getCharacters().get(randomNonCommandPicked.first)
                         if (whereAmI != null) {
                             val closeChair = state.logical.chairs.values.sortedBy { k ->
                                 val coords = Pair(k.x, k.y)

@@ -9,7 +9,7 @@ fun createExports() : dynamic {
     exports.simpleBoardConvert = { s: Array<String> -> simpleBoardConvert(s) }
     exports.getCharList = { t: Int, s: GameState ->
         var r = js("[]")
-        for (ch in s.logical.characters.values.filter { ch -> ch.team == t }) {
+        for (ch in s.logical.getCharacters().values.filter { ch -> ch.team == t }) {
             var o = js("new Object()")
             o.name = ch.name
             o.team = ch.team
@@ -22,7 +22,7 @@ fun createExports() : dynamic {
     }
     exports.showBoard = { s: GameState ->
         var res = ArrayList<String>()
-        var chars = s.logical.characters.values.map { ch -> Pair(ch.at, ch.team) }.toMap()
+        var chars = s.logical.getCharacters().values.map { ch -> Pair(ch.at.idx, ch.team) }.toMap()
 
         for (i in 0..(s.logical.board.dimY - 1)) {
             if (i != 0) {
@@ -39,9 +39,9 @@ fun createExports() : dynamic {
                         res.add("-")
                     }
                 } else {
-                    val ch = chars.get(ord)
+                    val ch = chars[ord.idx]
                     if (sq.role == SquareRole.COMMAND_SEAT) {
-                        if (chars.containsKey(ord)) {
+                        if (ch != null) {
                             res.add("@")
                         } else {
                             if (sq.assoc == SquareAssoc.BRIDGE) {
@@ -95,7 +95,7 @@ fun createExports() : dynamic {
                 val action = CommandType.valueOf(locAndCmd[2])
                 val locPair = state.logical.board.ordOfCoords(loc[0].toDouble(), loc[1].toDouble())
                 val towardPair = state.logical.board.ordOfCoords(toward[0].toDouble(), toward[1].toDouble())
-                val who = state.logical.characters.get(name)
+                val who = state.logical.getCharacters()[name]
                 if (who != null) {
                     state.useCommand(who.id, Command(action, locPair, towardPair))
                 } else {
@@ -108,7 +108,7 @@ fun createExports() : dynamic {
             "Exception: " + e.toString()
         }
     }
-    exports.pathfind = {state : GameState, a : Ord, b : Ord ->
+    exports.pathfind = {state : GameState, a : Character, b : Ord ->
         val p = state.logical.hints.pathfind(a, b)
         console.log("p",p)
         if (p != null) {

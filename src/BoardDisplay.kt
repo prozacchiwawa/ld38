@@ -160,7 +160,7 @@ val wallSchemes : Map<Int, Array<Pair<Int,Double>>> = mapOf(
 
 fun drawBaseBoard(ctx : CanvasRenderingContext2D, state : GameState, assets : Assets) {
     var board = state.logical.board
-    var chars = state.logical.characters
+    var chars = state.logical.getCharacters()
     val dim = getBoardSize(board.dimX * TILESIZE, board.dimY * TILESIZE, board)
     // Render world
     ctx.fillStyle = "black"
@@ -236,7 +236,7 @@ fun makeBaseBoard(state : GameState, scale : Double, assets : Assets) : HTMLCanv
 
 fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanvasElement, assets : Assets, offsetX : Double, offsetY : Double, scale : Double) {
     var board = state.logical.board
-    var chars = state.logical.characters
+    var chars = state.logical.getCharacters()
 
     // Render world
     val renderWidth = scale * board.dimX * TILESIZE
@@ -269,8 +269,8 @@ fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanv
 
     // Render people
     for (disp in state.display.characters) {
-        val ch = state.logical.characters[disp.key]
-        val animStart = charAnimations.get(disp.value.animation)
+        val ch = state.logical.getCharacters()[disp.key]
+        val animStart = charAnimations[disp.value.animation]
         if (ch != null && animStart != null) {
             val elapsed = lastTime - disp.value.animstart
             val whichCycle = Math.floor(elapsed / animStart.time)

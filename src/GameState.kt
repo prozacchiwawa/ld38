@@ -75,7 +75,7 @@ public data class CharacterAnim(
         ) {
 }
 
-data class RoutedCommand(val hints : Hints, val ch : Ord, val cmd : Command, val path : ArrayList<Ord>? = hints.pathfind(ch, cmd.at)) { }
+data class RoutedCommand(val hints : Hints, val ch : Character?, val cmd : Command, val path : ArrayList<Ord>? = (if (ch != null) hints.pathfind(ch, cmd.at) else ArrayList<Ord>())) { }
 
 public data class Character(
         val id : String,
@@ -87,8 +87,7 @@ public data class Character(
         val health : Double,
         val dir : CharacterDirection,
         val doing : RoutedCommand
-        ) {
-
+        ) : IObjGetPos {
     fun availMoves() : Int {
         var moves = 3
         if (health < CHAR_START_HP * 0.3) {
@@ -97,6 +96,9 @@ public data class Character(
             moves = 2
         }
         return moves
+    }
+    override fun getPos() : ObjPos {
+        return ObjPos(at.x,at.y,0.0,0.4)
     }
 }
 
@@ -221,12 +223,18 @@ data class EquivPosRecord(var type : EquivType, val at : Ord, val team : Int) {
 }
 
 public data class GameStateData(
-        val characters : Map<String, Character>,
         val board : GameBoard,
         val chairs : Map<SquareAssoc,Ord> = board.square.mapIndexed { i, square -> Pair(board.ordOfIdx(i),square) }.filter { p -> p.second.role == SquareRole.COMMAND_SEAT }.map { p -> Pair(p.second.assoc, p.first) }.toMap(),
         val stations : Map<SquareAssoc,Ord> = board.square.mapIndexed { i, square -> Pair(board.ordOfIdx(i),square) }.filter { p -> p.second.role == SquareRole.WORK_STATION }.map { p -> Pair(p.second.assoc, p.first) }.toMap(),
-        val hints : Hints = Hints(board, board.square.mapIndexed { i, square -> Pair(board.ordOfIdx(i),square) }.filter { p -> p.second.role == SquareRole.COMMAND_SEAT }.map { p -> Pair(p.second.assoc, p.first) }.toMap())
+        val hints : Hints = Hints(board, board.square.mapIndexed { i, square -> Pair(board.ordOfIdx(i),square) }.filter { p -> p.second.role == SquareRole.COMMAND_SEAT }.map { p -> Pair(p.second.assoc, p.first) }.toMap()),
+        private val characters : Map<String, Character> = mapOf(),
+        private val collision : OctreeNode = OctreeNode(null, Box(arrayOf(arrayOf(0.0,0.0,-10.0),arrayOf(board.dimX.toDouble(),board.dimY.toDouble(),10.0))))
         ) {
+    fun getCharacters() : Map<String, Character> { return characters }
+    fun getCollision() : OctreeNode { return collision }
+    fun moveCharacter(id : String, ch : Character) : GameStateData {
+        return copy(characters=characters.plus(Pair(id,ch)), collision=collision.remove(id,ch).insert(id,ch,false))
+    }
     fun distinctState() : List<EquivPosRecord> {
         val doors = board.doors.values.map { d ->
             if (d.amtOpen >= 0.75) {
@@ -306,8 +314,9 @@ public data class GameStateData(
         }
     }
 
-    fun isPassable(at : Ord) : Boolean {
-        return board.isPassable(at) && !(characters.any { ch -> ch.value.at == at })
+    fun isPassable(ch : Character) : Boolean {
+        val collisions = collision.collide(ch.id, ch)
+        return board.isPassable(ch.at) && collisions.size == 0
     }
 }
 
@@ -330,8 +339,8 @@ public data class SquareDisplay(
 
 fun initDisplayFromState(logical : GameStateData) :
         Map<String, CharacterDisplay> {
-    val charMap : MutableMap<String, CharacterDisplay> = mutableMapOf();
-    for (kv in logical.characters) {
+    val charMap : MutableMap<String, CharacterDisplay> = mutableMapOf()
+    for (kv in logical.getCharacters()) {
         charMap[kv.key] =
                 CharacterDisplay(
                         CharacterAnim(CharacterDirection.SOUTH, CharacterAnimType.IDLE),
@@ -339,7 +348,7 @@ fun initDisplayFromState(logical : GameStateData) :
                         0.0
                 )
     }
-    return charMap;
+    return charMap
 }
 
 data class GameDisplay(val logical: GameStateData, val characters : Map<String, CharacterDisplay> = initDisplayFromState(logical)) {
@@ -373,17 +382,16 @@ fun directionOf(a : Ord, b : Ord) : CharacterDirection {
     }
 }
 
-
 data class PathComponent(val prev: PathComponent?, val open: Boolean, val me: Ord) {}
 
-fun addIfPassable(board : GameBoard, target : Ord, first: PathComponent, visited: ArrayList<PathComponent>) {
-    if (board.isPassable(target)) {
-        visited.add(PathComponent(first, false, target))
+fun addIfPassable(state : GameStateData, who : Character, first: PathComponent, visited: ArrayList<PathComponent>) {
+    if (state.isPassable(who)) {
+        visited.add(PathComponent(first, false, who.at))
     }
 }
 
-fun pathfind(board : GameBoard, from : Ord, to : Ord): ArrayList<Ord>? {
-    val at = from
+fun pathfind(state : GameStateData, who : Character, to : Ord): ArrayList<Ord>? {
+    val at = who.at
     val want = to
     val visited: ArrayList<PathComponent> = arrayListOf()
     visited.add(PathComponent(null, false, at))
@@ -394,15 +402,15 @@ fun pathfind(board : GameBoard, from : Ord, to : Ord): ArrayList<Ord>? {
             val al: ArrayList<Ord> = arrayListOf()
             var f: PathComponent? = first
             while (f != null) {
-                al.add(0, f.me)
+                al.add(0, f.me.add(0.5,0.5))
                 f = f.prev
             }
             return al
         }
-        addIfPassable(board, first.me.add(-1.0, 0.0), first, visited)
-        addIfPassable(board, first.me.add(1.0, 0.0), first, visited)
-        addIfPassable(board, first.me.add(0.0, -1.0), first, visited)
-        addIfPassable(board, first.me.add(0.0, 1.0), first, visited)
+        addIfPassable(state, who.copy(at=first.me.add(-1.0, 0.0)), first, visited)
+        addIfPassable(state, who.copy(at=first.me.add(1.0, 0.0)), first, visited)
+        addIfPassable(state, who.copy(at=first.me.add(0.0, -1.0)), first, visited)
+        addIfPassable(state, who.copy(at=first.me.add(0.0, 1.0)), first, visited)
     }
     return null
 }
@@ -420,9 +428,9 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
     }
 
     fun useCommand(chid : String, cmd : Command) : GameState {
-        val ch = logical.characters.get(chid)
+        val ch = logical.getCharacters()[chid]
         if (ch != null) {
-            return GameState(logical.copy(characters = logical.characters.plus(Pair(chid, ch.copy(doing = RoutedCommand(logical.hints, ch.at, cmd))))), display)
+            return GameState(logical.moveCharacter(chid, ch.copy(doing = RoutedCommand(logical.hints, ch, cmd))), display)
         } else {
             return this
         }
@@ -442,77 +450,93 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
             }
         }.toMap()
 
-        val characterLocations = logical.characters.values.map { ch -> Pair(ch.at, ch) }.toMap()
-
         var tookDamage : Map<String,Pair<Int,Double>> = mapOf()
         var roleSwaps : Map<String, String> = mapOf()
 
         // For each character that has a pending action, try to move the character closer to where it's going
-        var updatedCharacters = logical.characters.values.map { kv ->
+        var updatedCharacters = logical.getCharacters().values.map { kv ->
             if (kv.doing.path != null && kv.doing.path.size > 0) {
                 var toward = kv.doing.path[0]
-                var makeNew = { kv: Character -> kv.at }
+                var makeNew = { kv: Character -> kv }
                 if (kv.at.x < toward.x) {
-                    makeNew = { kv: Character -> kv.at.set(Math.min(kv.at.x + t / TILE_WALK_TIME, toward.x), kv.at.y) }
+                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(Math.min(kv.at.x + t / TILE_WALK_TIME, toward.x), kv.at.y)) }
                 } else if (kv.at.x > toward.x) {
-                    makeNew = { kv: Character -> kv.at.set(Math.max(kv.at.x - t / TILE_WALK_TIME, toward.x), kv.at.y) }
+                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(Math.max(kv.at.x - t / TILE_WALK_TIME, toward.x), kv.at.y)) }
                 } else if (kv.at.y < toward.y) {
-                    makeNew = { kv: Character -> kv.at.set(kv.at.x, Math.min(kv.at.y + t / TILE_WALK_TIME, toward.y)) }
+                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(kv.at.x, Math.min(kv.at.y + t / TILE_WALK_TIME, toward.y))) }
                 } else if (kv.at.y > toward.y) {
-                    makeNew = { kv: Character -> kv.at.set(kv.at.x, Math.max(kv.at.y - t / TILE_WALK_TIME, toward.y)) }
+                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(kv.at.x, Math.max(kv.at.y - t / TILE_WALK_TIME, toward.y))) }
                 }
                 var newDoing = kv.doing
                 var newDir = kv.dir
                 val newAt = makeNew(kv)
-                val door = updatedDoors[newAt.idx]
+                val door = updatedDoors[newAt.at.idx]
                 var replaceDoor : DoorState? = null
                 var canPass = true
-                var mustFight : Character? = characterLocations.get(newAt)
+                var mustFightChars : Set<String> = logical.getCollision().collide(kv.id, newAt)
+                if (mustFightChars.size > 0) {
+                    console.log("$kv oppose $mustFightChars")
+                }
                 if (door != null && !door.locked) {
                     replaceDoor = door.copy(wantState = true, openTime = 0.0)
-                    updatedDoors = updatedDoors.plus(Pair(newAt.idx, replaceDoor))
+                    updatedDoors = updatedDoors.plus(Pair(newAt.at.idx, replaceDoor))
                     canPass = door.amtOpen >= 0.75
                 }
-                if (mustFight != null) {
-                    if (mustFight.id == kv.id) {
-                        mustFight = null
-                    } else {
-                        canPass = false
-                    }
+                if (mustFightChars.size > 0) {
+                    canPass = false
                 }
+                val passMyTeam = mustFightChars.filter { id ->
+                    val ch = logical.getCharacters()[id]
+                    ch != null && ch.team == kv.team
+                }
+                mustFightChars = mustFightChars.minus(passMyTeam)
+
+                console.log("canPass ${canPass}")
+
                 if (canPass) {
-                    if (Math.floor(newAt.x) == Math.floor(toward.x) && Math.floor(newAt.y) == Math.floor(toward.y)) {
+                    if (newAt.at.idx == toward.idx) {
                         val newPath = ArrayList<Ord>()
                         newPath.plusAssign(kv.doing.path.drop(1))
                         newDoing = kv.doing.copy(path = newPath)
                     } else {
                         newDir = directionOf(kv.at, toward)
                     }
-                    kv.copy(
+                    console.log("Return with at=${newAt.at} last=${kv.at}")
+                    newAt.copy(
                             dir = newDir,
-                            at = newAt,
                             lastAt = kv.at,
                             doing = newDoing
                     )
-                } else if (mustFight != null && mustFight.team != kv.team) {
+                } else if (mustFightChars.size > 0) {
                     if (kv.doing.path.size == 1) {
                         newDoing = kv.doing.copy(path=arrayListOf())
                     }
-                    val whatStats = classStats.get(kv.charclass)
-                    val otherStats = classStats.get(mustFight.charclass)
+                    val randomCharsToFight : List<Character> = mustFightChars.toList().flatMap { id ->
+                        val ch = logical.getCharacters()[id]
+                        if (ch != null) {
+                            listOf(ch)
+                        } else {
+                            listOf()
+                        }
+                    }
+                    val randomCharToFight = randomCharsToFight[Math.floor(rand() * randomCharsToFight.size)]
+                    val whatStats = classStats[kv.charclass]
+                    val otherStats = classStats[randomCharToFight.charclass]
                     if (whatStats != null && otherStats != null) {
                         val hpDrain = BASE_DPS * whatStats.attack / otherStats.defense
-                        tookDamage = tookDamage.plus(Pair(mustFight.id, Pair(kv.team, hpDrain)))
+                        tookDamage = tookDamage.plus(Pair(randomCharToFight.id, Pair(kv.team, hpDrain)))
                     }
-                    kv.copy(
+                    newAt.copy(
                             dir = newDir,
-                            at = newAt,
                             lastAt = kv.at,
                             doing = newDoing
                     )
-                } else if (mustFight != null) {
+                } else if (passMyTeam.size == 1) {
                     // Swap roles
-                    roleSwaps = roleSwaps.plus(Pair(kv.id, mustFight.id))
+                    val mustPass = passMyTeam.firstOrNull()
+                    if (mustPass != null) {
+                        roleSwaps = roleSwaps.plus(Pair(kv.id, mustPass))
+                    }
                     kv
                 } else {
                     kv
@@ -521,7 +545,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 kv.copy(dir = CharacterDirection.SOUTH, lastAt = kv.at)
             }
         }.map { ch -> Pair(ch.id, ch) }
-        var newCharacters = logical.characters.plus(updatedCharacters)
+        var newCharacters = logical.getCharacters().plus(updatedCharacters)
         for (p in tookDamage.entries) {
             val currentState = newCharacters.get(p.key)
             if (currentState != null) {
@@ -559,7 +583,10 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                         listOf()
                     }
                 }
-        val newlog = logical.copy(characters = newCharacters, board = logical.board.copy(doors = updatedDoors))
+        var newlog = logical.copy(board = logical.board.copy(doors = updatedDoors))
+        for (ch in newCharacters.values) {
+            newlog = newlog.moveCharacter(ch.id, ch)
+        }
         return GameState(
                 logical = newlog,
                 display = display.copy(

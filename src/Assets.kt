@@ -35,7 +35,7 @@ class Assets {
 
     fun start() {
         var image : HTMLImageElement = js("new Image()")
-        image.addEventListener("load", { evt ->
+        image.addEventListener("load", { _ ->
             sprites = image
 
             // Prepare palette swaps

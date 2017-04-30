@@ -122,7 +122,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
         val seatPositions = state.logical.chairs.map { chair -> Pair(chair.value,chair.key) }.toMap()
         val teamsHoldingSeats = (0..3).map { team ->
-            Pair(team, state.logical.characters.values.filter { ch ->
+            Pair(team, state.logical.getCharacters().values.filter { ch ->
                 ch.team == team && seatPositions.containsKey(ch.at)
             }.count())
         }
@@ -180,7 +180,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
             givingOrder = null
             orderMarker = null
         } else {
-            val matchingChar = state.logical.characters.values.filter { ch ->
+            val matchingChar = state.logical.getCharacters().values.filter { ch ->
                 ch.at.idx == mouse.idx
             }.take(1).firstOrNull()
             if (matchingChar != null) {
@@ -229,7 +229,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
         val y = dim.boardTop + dim.boardHeight
 
         // Draw character descriptions
-        val characters = state.logical.characters.values.sortedBy { ch : Character ->
+        val characters = state.logical.getCharacters().values.sortedBy { ch : Character ->
             if (ch.team < 0) {
                 ch.team + 1000
             } else {
@@ -243,7 +243,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
             ctx.fillStyle = "white"
             ctx.font = "40px serif"
             ctx.fillText("Move: $go", 0.0, 40.0)
-            val ch = state.logical.characters.get(go)
+            val ch = state.logical.getCharacters()[go]
             if (ch != null) {
                 val om = orderMarker
                 if (om == null) {
@@ -266,7 +266,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
         val sm = showMe
         if (sm != null) {
-            val ch = state.logical.characters.get(sm)
+            val ch = state.logical.getCharacters()[sm]
             if (sm != null) {
                 ctx.fillStyle = "rgba(0,0,0,0.5)"
                 ctx.fillRect(0.0,0.0,screenX.toDouble(),screenY.toDouble())

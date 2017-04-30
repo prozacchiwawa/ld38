@@ -89,17 +89,15 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
         }.joinToString("\n")
     }
 
-    fun pathfind(a : Ord, b : Ord) : ArrayList<Ord>? {
-        if (a.idx == b.idx) {
-            return arrayListOf(b)
+    fun pathfind(a : Character, b : Ord) : ArrayList<Ord>? {
+        val state = GameStateData(board)
+        if (a.at.idx == b.idx) {
+            return arrayListOf(a.at)
         }
         // Find the closest door to each
         console.log("pathfind $a $b")
-        if (a == b) {
-            return ArrayList<Ord>(listOf(a))
-        }
         val doorA = board.doors.values.sortedBy { door ->
-            distance(a.x, a.y, door.ord.x, door.ord.y)
+            distance(a.at.x, a.at.y, door.ord.x, door.ord.y)
         }.firstOrNull()
         val doorB = board.doors.values.sortedBy { door ->
             distance(b.x, b.y, door.ord.x, door.ord.y)
@@ -109,33 +107,33 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
             val agrad = towardDoor[doorA.ord.idx]
             val bgrad = towardDoor[doorB.ord.idx]
             if (agrad != null && bgrad != null) {
-                val pathToDoorA = followGradient(agrad, a)
+                val pathToDoorA = followGradient(agrad, a.at)
                 val pathToDoorB = followGradient(bgrad, b)
                 // Truncate each path at the first door it crosses in case it isn't the closest in space distance
                 if (pathToDoorA != null && pathToDoorB != null) {
                     val pathToFirstDoorA = ArrayList<Ord>()
                     for (v in pathToDoorA.asIterable()) {
                         if (board.doors.containsKey(v.idx)) {
-                            pathToFirstDoorA.add(v)
+                            pathToFirstDoorA.add(v.add(0.5,0.5))
                             break
                         } else {
-                            pathToFirstDoorA.add(v)
+                            pathToFirstDoorA.add(v.add(0.5,0.5))
                         }
                     }
                     val pathToFirstDoorB = ArrayList<Ord>()
                     for (v in pathToDoorB.asIterable()) {
                         if (board.doors.containsKey(v.idx)) {
-                            pathToFirstDoorB.add(v)
+                            pathToFirstDoorB.add(v.add(0.5,0.5))
                             break
                         } else {
-                            pathToFirstDoorB.add(v)
+                            pathToFirstDoorB.add(v.add(0.5,0.5))
                         }
                     }
                     if (pathToFirstDoorA.size > 0 && pathToFirstDoorB.size > 0) {
                         val lastA = pathToFirstDoorA.last()
                         val lastB = pathToFirstDoorB.last()
                         if (lastA == lastB) {
-                            return pathfind(board, a, b)
+                            return pathfind(state, a, b)
                         } else {
                             // pathToFirstDoorA + pathFromDoorAToDoorB + pathToFirstDoorB.reverse()
                             val abgrad = towardDoor[lastB.idx]

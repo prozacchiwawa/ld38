@@ -195,7 +195,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
     val chosenNames = ArrayList<String>()
 
     val board = GameBoard(xdim, ydim, boardContents.toTypedArray(), doors)
-    var logical = GameStateData(mapOf(), board)
+    var logical = GameStateData(board)
 
     for (idx in spawns) {
         var i = idx / xdim
@@ -208,7 +208,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
         }
         val ord = board.ordOfIdx(idx)
         chosenNames.add(fullName)
-        characters.put(fullName, Character(fullName, fullName, ord, ord, charClass, -1, CHAR_START_HP, CharacterDirection.SOUTH, RoutedCommand(logical.hints, ord, Command(CommandType.IDLE, ord, ord))))
+        characters.put(fullName, Character(fullName, fullName, ord, ord, charClass, -1, CHAR_START_HP, CharacterDirection.SOUTH, RoutedCommand(logical.hints, null, Command(CommandType.IDLE, ord, ord))))
     }
 
     var assignedTeamLeads = 0
@@ -221,7 +221,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
         }
     }
 
-    return GameState(GameStateData(characters, board))
+    return GameState(GameStateData(board, characters = characters))
 }
 
 fun testBoard() : GameState {
