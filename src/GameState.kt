@@ -449,6 +449,13 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
         }
     }
 
+    fun halfinate(t : Double, arg : Double) : Double {
+        val towardInt = Math.floor(arg)
+        val toward = towardInt + 0.5
+        if (toward > arg) { return Math.min(arg + t, toward) }
+        else { return Math.max(arg - t, toward) }
+    }
+
     fun run(t : Double) : GameState {
         var updatedDoors = logical.board.doors.entries.map { kv ->
             if (kv.value.locked || kv.value.openTime + t > DOOR_CLOSE_TIME) {
@@ -474,13 +481,13 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 var toward = kv.doing.path[0]
                 var makeNew = { kv: Character -> kv }
                 if (kv.at.x < toward.x) {
-                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(Math.min(kv.at.x + t / TILE_WALK_TIME, toward.x), kv.at.y)) }
+                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(Math.min(kv.at.x + t / TILE_WALK_TIME, toward.x), halfinate(t, kv.at.y))) }
                 } else if (kv.at.x > toward.x) {
-                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(Math.max(kv.at.x - t / TILE_WALK_TIME, toward.x), kv.at.y)) }
+                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(Math.max(kv.at.x - t / TILE_WALK_TIME, toward.x), halfinate(t, kv.at.y))) }
                 } else if (kv.at.y < toward.y) {
-                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(kv.at.x, Math.min(kv.at.y + t / TILE_WALK_TIME, toward.y))) }
+                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(halfinate(t, kv.at.x), Math.min(kv.at.y + t / TILE_WALK_TIME, toward.y))) }
                 } else if (kv.at.y > toward.y) {
-                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(kv.at.x, Math.max(kv.at.y - t / TILE_WALK_TIME, toward.y))) }
+                    makeNew = { kv: Character -> kv.copy(at=kv.at.set(halfinate(t, kv.at.x), Math.max(kv.at.y - t / TILE_WALK_TIME, toward.y))) }
                 }
                 var newDoing = kv.doing
                 var newDir = kv.dir

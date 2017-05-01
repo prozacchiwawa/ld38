@@ -182,6 +182,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
         }
 
         if (go != null) {
+            val mouse = mouse.set(Math.floor(mouse.x) + 0.5, Math.floor(mouse.y) + 0.5)
             state = state.useCommand(go, Command(CommandType.IDLE, mouse, mouse))
             showMe = null
             givingOrder = null
