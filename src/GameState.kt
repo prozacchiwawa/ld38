@@ -234,7 +234,11 @@ public data class GameStateData(
     fun getCharacters() : Map<String, Character> { return characters }
     fun getCollision() : OctreeNode { return collision }
     fun moveCharacter(id : String, ch : Character) : GameStateData {
-        return copy(characters=characters.plus(Pair(id,ch)), collision=collision.remove(id,ch).insert(id,ch,false))
+        if (collision.collide(id, ch).isEmpty()) {
+            return copy(characters = characters.plus(Pair(id, ch)), collision = collision.remove(id, ch).insert(id, ch, false))
+        } else {
+            return this
+        }
     }
     fun distinctState() : List<EquivPosRecord> {
         val doors = board.doors.values.map { d ->

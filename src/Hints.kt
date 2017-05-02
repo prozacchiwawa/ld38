@@ -92,11 +92,15 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
         if (a.at.idx == b.idx) {
             return arrayListOf(a.at)
         }
+        // If they're in the same room, bfs
+        if (board.square[a.at.idx].assoc == board.square[b.idx].assoc) {
+            return pathfind(state, a, b)
+        }
         // Find the closest door to each
-        val doorA = board.doors.values.sortedBy { door ->
+        val doorA = board.doors.values.filter { d -> distance(d.ord.x, d.ord.y, a.at.x, a.at.y) >= 1.0 }.sortedBy { door ->
             distance(a.at.x, a.at.y, door.ord.x, door.ord.y)
         }.firstOrNull()
-        val doorB = board.doors.values.sortedBy { door ->
+        val doorB = board.doors.values.filter { d -> distance(d.ord.x, d.ord.y, a.at.x, a.at.y) >= 1.0 }.sortedBy { door ->
             distance(b.x, b.y, door.ord.x, door.ord.y)
         }.firstOrNull()
         // Follow the gradients, stopping at the first door we cross.
