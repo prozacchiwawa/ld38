@@ -432,12 +432,13 @@ fun pathfind(state : GameStateData, who : Character, to : Ord): ArrayList<Ord>? 
     return null
 }
 
-public class GameState(logical : GameStateData, display : GameDisplay = GameDisplay(logical)) {
+public class GameState(logical : GameStateData, display : GameDisplay = GameDisplay(logical), enemyPlans : Map<Int, EnemyPlan>) {
     val logical : GameStateData = logical
     var display : GameDisplay = display
+    val enemyPlans : Map<Int,EnemyPlan> = enemyPlans
 
-    fun copy(logical : GameStateData = this.logical, display : GameDisplay = this.display) : GameState {
-        return GameState(logical, display)
+    fun copy(logical : GameStateData = this.logical, display : GameDisplay = this.display, enemyPlans : Map<Int,EnemyPlan> = this.enemyPlans) : GameState {
+        return GameState(logical, display, enemyPlans)
     }
 
     fun computeDisplay(logical: GameStateData): GameDisplay {
@@ -447,7 +448,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
     fun useCommand(chid : String, cmd : Command) : GameState {
         val ch = logical.getCharacters()[chid]
         if (ch != null) {
-            return GameState(logical.moveCharacter(chid, ch.copy(doing = RoutedCommand(logical.hints, ch, cmd))), display)
+            return GameState(logical.moveCharacter(chid, ch.copy(doing = RoutedCommand(logical.hints, ch, cmd))), display, enemyPlans)
         } else {
             return this
         }
@@ -458,6 +459,21 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
         val toward = towardInt + 0.5
         if (toward > arg) { return Math.min(arg + t, toward) }
         else { return Math.max(arg - t, toward) }
+    }
+
+    fun enemyPlan(t : Double) : GameState {
+        console.log("enemy plan $t")
+        val plans = if (enemyPlans.size == 0) {
+            mapOf(Pair(1, EnemyPlan(1)), Pair(2, EnemyPlan(2)), Pair(3, EnemyPlan(3)))
+        } else {
+            enemyPlans
+        }
+        var res = this
+        plans.values.forEachIndexed { i,plan ->
+            val up = plan.step(t, res)
+            res = up.first.copy(enemyPlans = up.first.enemyPlans.plus(Pair(i, up.second)))
+        }
+        return res
     }
 
     fun run(t : Double) : GameState {
@@ -640,7 +656,8 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 display = display.copy(
                         logical = newlog,
                         characters = display.characters.plus(charDispUpdates)
-                        )
-        )
+                        ),
+                enemyPlans = enemyPlans
+        ).enemyPlan(t)
     }
 }

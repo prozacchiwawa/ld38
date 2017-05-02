@@ -30,8 +30,18 @@ runGame.scan({}, function(seed,event) {
     } else if (event.type === 'doneauto') {
         res.hopper = [];
         rl.question("> ", sendLine);
+    } else if (event.type === 'runauto') {
+        if (res.running) {
+            res.running = setTimeout(function() { runGame.push({type: 'runauto'}); }, 100);
+            res.state = ld38.run(res.state, 0.1);
+            console.log(ld38.showBoard(res.state));
+        }
     } else if (event.type === 'readline') {
-        if (res.phase === 'yourturn') {
+        if (res.running) {
+            clearTimeout(res.running);
+            res.running = false;
+        }
+        else if (res.phase === 'yourturn') {
             if (event.data === 'end') {
                 // Take turn
                 res.remaining = {};
@@ -50,6 +60,8 @@ runGame.scan({}, function(seed,event) {
 		        coords.shift();
                 var path = ld38.pathfind(res.state, parseInt(coords[0]), parseInt(coords[1]), parseInt(coords[2]), parseInt(coords[3]));
                 console.log(path);
+            } else if (event.data === 'run') {
+                res.running = setTimeout(function() { runGame.push({type: 'runauto'}); }, 100);
             } else {
                 var split = event.data.split('@')
                 var chname = split[0].trim()

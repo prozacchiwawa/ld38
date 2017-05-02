@@ -70,12 +70,6 @@ class YourTurnMode(var state : GameState) : IGameMode {
     var pausedRect : Rect? = null
     var sel : Ord? = null
 
-    var enemyPlans = arrayOf(
-            EnemyPlan(1, state, 0.0, mapOf()),
-            EnemyPlan(2, state, 0.0, mapOf()),
-            EnemyPlan(3, state, 0.0, mapOf())
-    )
-
     fun updateAnims(t : Double) {
         val empty : List<ClickAnim> = emptyList()
         clickAnims = empty.plus(clickAnims.mapNotNull { kv -> kv.update(t) })
@@ -138,11 +132,6 @@ class YourTurnMode(var state : GameState) : IGameMode {
         if (winningTeam != null) {
             return WinMode(winningTeam.first, state)
         } else {
-            for (i in (0..2)) {
-                val up = enemyPlans[i].step(t, state)
-                state = up.first
-                enemyPlans[i] = up.second
-            }
             return this
         }
     }

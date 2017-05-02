@@ -225,7 +225,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
     for (ch in characters.values) {
         collision = collision.insert(ch.id, ch, false)
     }
-    return GameState(GameStateData(board, characters = characters, collision = collision))
+    return GameState(GameStateData(board, characters = characters, collision = collision), enemyPlans = mapOf())
 }
 
 fun testBoard() : GameState {

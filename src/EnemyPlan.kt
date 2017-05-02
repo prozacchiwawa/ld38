@@ -15,7 +15,7 @@ enum class Intention {
 data class PlanInfo(val intention : Intention, val posTarget : Ord, val charTarget : String?) {
 }
 
-data class EnemyPlan(val team : Int, val state : GameState, val elapsed : Double, val unitPlans : Map<String,PlanInfo>) {
+data class EnemyPlan(val team : Int, val elapsed : Double = 0.0, val unitPlans : Map<String,PlanInfo> = mapOf()) {
     fun step(t : Double, state : GameState) : Pair<GameState, EnemyPlan> {
         // Update the plan
         val nextTime = elapsed + t
@@ -86,9 +86,9 @@ data class EnemyPlan(val team : Int, val state : GameState, val elapsed : Double
                     }
                 }
             }
-            return Pair(state, EnemyPlan(team, state, 0.0, newPlans))
+            return Pair(state, EnemyPlan(team, 0.0, newPlans))
         } else {
-            return Pair(state, EnemyPlan(team, state, nextTime, unitPlans))
+            return Pair(state, EnemyPlan(team, nextTime, unitPlans))
         }
     }
 }
