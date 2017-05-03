@@ -116,19 +116,16 @@ class YourTurnMode(var state : GameState) : IGameMode {
         }
 
         val seatPositions = state.logical.chairs.map { chair -> Pair(chair.value.idx,chair.key) }.toMap()
-        console.log("seatPositions $seatPositions")
         val teamsHoldingSeats = (0..3).map { team ->
             Pair(team, state.logical.getCharacters().values.filter { ch ->
                 ch.team == team && seatPositions.containsKey(ch.at.idx)
             }.count())
         }
-        console.log("teamsHoldingSeats $teamsHoldingSeats")
         val yourGuys = state.logical.getCharacters().values.filter { ch -> ch.team == 0 }.count()
         if (yourGuys < 1) {
             return WinMode(-1, state)
         }
         val winningTeam = teamsHoldingSeats.filter { t -> t.second >= 3 }.firstOrNull()
-        console.log("winningTeam $winningTeam")
         if (winningTeam != null) {
             return WinMode(winningTeam.first, state)
         } else {

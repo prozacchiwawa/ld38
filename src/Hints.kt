@@ -5,9 +5,9 @@
 package ldjam.prozacchiwawa
 
 class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
-    fun createTowardCommandGradient(chair : Ord) : Array<CharacterDirection?> {
+    fun createTowardCommandGradient(chair : Ord) : Array<Pair<CharacterDirection,Int>?> {
         console.log("find ways to $chair")
-        val arr = Array<CharacterDirection?>(board.dimX * board.dimY, { idx -> null });
+        val arr = Array<Pair<CharacterDirection,Int>?>(board.dimX * board.dimY, { idx -> null });
         if (chair != null) {
             val queue = arrayListOf(Pair(chair, 0))
             while (queue.size > 0) {
@@ -21,7 +21,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
                     if (arr[o.first.idx] == null) {
                         val c1 = qe.first
                         val c2 = o.first
-                        arr[o.first.idx] = directionOf(c1, c2)
+                        arr[o.first.idx] = Pair(directionOf(c1, c2), o.second)
                         queue.add(o)
                     }
                 }
@@ -38,7 +38,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
             listOf()
         }
     }).toMap()
-    val towardDoor : Map<Int,Array<CharacterDirection?>> = board.doors.map { x ->
+    val towardDoor : Map<Int,Array<Pair<CharacterDirection,Int>?>> = board.doors.map { x ->
         Pair(x.key, createTowardCommandGradient(board.ordOfIdx(x.key)))
     }.toMap()
 
@@ -54,7 +54,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
         }
     }
 
-    fun followGradient(gradient : Array<CharacterDirection?>, at : Ord) : ArrayList<Ord>? {
+    fun followGradient(gradient : Array<Pair<CharacterDirection,Int>?>, at : Ord) : ArrayList<Ord>? {
         var count = 0
         val res : ArrayList<Ord> = arrayListOf()
         var start = gradient[at.idx]
@@ -65,7 +65,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
         } else {
             while (start != null) {
                 res.add(where)
-                where = followDirection(start, where)
+                where = followDirection(start.first, where)
                 start = gradient[where.idx]
                 count += 1
                 if (count > 1000) { throw Exception("Bad Following") }
