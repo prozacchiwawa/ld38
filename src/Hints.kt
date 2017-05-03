@@ -94,6 +94,7 @@ class Hints(val board : GameBoard, chairs : Map<SquareAssoc, Ord>) {
         }
         // If they're in the same room, bfs
         if (board.square[a.at.idx].assoc == board.square[b.idx].assoc) {
+            console.log("Short circuit-path since A and B are both in room ${board.square[a.at.idx].assoc}")
             return pathfind(state, a, b)
         }
         // Find the closest door to each

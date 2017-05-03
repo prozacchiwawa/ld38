@@ -64,7 +64,7 @@ public data class Ord(val idx : Int, val x : Double, val y : Double, val dimX : 
     }
 }
 
-data class RoutedCommand(val hints : Hints, val ch : Character?, val cmd : Command, val path : ArrayList<Ord>? = (if (ch != null) hints.pathfind(ch, cmd.at) else ArrayList<Ord>())) { }
+data class RoutedCommand(val hints : Hints, val ch : Character?, val cmd : Command, val path : ArrayList<Ord>? = (if (ch != null) hints.pathfind(ch, cmd.at) else null)) { }
 
 public data class DoorState(
         val ord : Ord,
@@ -407,7 +407,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
     fun useCommand(chid : String, cmd : Command) : GameState {
         val ch = logical.getCharacters()[chid]
         if (ch != null) {
-            return GameState(logical.moveCharacter(chid, ch.copy(doing = RoutedCommand(logical.hints, ch, cmd))), display, enemyPlans)
+            return GameState(logical.moveCharacter(chid, ch.copy(at = ch.at.round(), doing = RoutedCommand(logical.hints, ch, cmd))), display, enemyPlans)
         } else {
             return this
         }
@@ -486,7 +486,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 } else {
                     Pair(kv.swapping.first, sw)
                 }
-                console.log("Swap: ${kv.id} move from ${kv.at} to ${nx},${ny}")
                 kv.copy(swapping = newSwap, at = kv.at.set(nx, ny))
             } else if (kv.moving != null) {
                 val toward = kv.moving.first
@@ -519,7 +518,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                     if (logical.getCharacters().values.filter { ch ->
                         ch.moving != null && ch.moving.first.idx == toward.idx
                     }.size > 0) {
-                        console.log("${kv.id} somebody is already moving to ${toward.idx}")
                         kv
                     } else {
                         val rawCollision: Set<String> = logical.getCollision().collide(nextAt.id, nextAt)
@@ -537,7 +535,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                             // Swap roles
                             val mustPass = canPassChars.firstOrNull()
                             if (mustPass != null) {
-                                console.log("${kv.name} wants to pass $mustPass")
                                 if (kv.id < mustPass) {
                                     roleSwaps = roleSwaps.plus(Pair(kv.id, mustPass))
                                 } else {
@@ -546,7 +543,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                             }
                             kv
                         } else if (mustFightChars.size > 0) {
-                            console.log("${kv.id} must fight ${mustFightChars} to proceed")
                             val toFight = pickAFight(kv, mustFightChars.toList())
                             if (toFight != null) {
                                 fighting = fighting.plus(Pair(kv.id, toFight))
@@ -561,10 +557,8 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                                 canPass = canPass.and(door.amtOpen >= 0.75)
                             }
                             if (canPass) {
-                                console.log("${kv.id} can move toward $toward")
-                                kv.copy(moving = Pair(toward, 0.0))
+                                kv.copy(moving = Pair(toward.round(), 0.0))
                             } else {
-                                console.log("A door blocks ${kv.id} open ${door?.amtOpen}")
                                 kv
                             }
                         }
@@ -577,7 +571,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                     ch != null && ch.team != kv.team && kv.team != -1
                 }
                 if (adjacentToFight.size > 0) {
-                    console.log("${kv.name} : Adjacent to ${adjacentToFight.size}")
                     val toFight = pickAFight(kv, adjacentToFight.toList())
                     if (toFight != null) {
                         fighting = fighting.plus(Pair(kv.id, toFight))
@@ -599,7 +592,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 if (whatStats != null && otherStats != null) {
                     val hpDrain = BASE_DPS * whatStats.attack / otherStats.defense
                     tookDamage = tookDamage.plus(Pair(randomCharToFight.id, Pair(kv.team, hpDrain)))
-                    console.log("Stand and fight ${randomCharToFight}, damage $tookDamage")
                 }
             }
         }
@@ -623,7 +615,6 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
             val c1 = newCharacters[p.key]
             val c2 = newCharacters[p.value]
             if (c1 != null && c2 != null) {
-                console.log("Set swapping for ${c1.name} ${c1.at} and ${c2.name} ${c2.at}")
                 newCharacters = newCharacters.plus(Pair(c1.id, c1.copy(swapping = Pair(c2.at.round(), SWAP_TIME))))
                 newCharacters = newCharacters.plus(Pair(c2.id, c2.copy(swapping = Pair(c1.at.round(), SWAP_TIME))))
             }

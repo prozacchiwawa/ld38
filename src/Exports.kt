@@ -16,6 +16,11 @@ fun createExports() : dynamic {
             o.health = ch.health
             o.x = ch.at.x
             o.y = ch.at.y
+            o.doing = ch.doing.cmd.type
+            o.doingNext = if (ch.doing.path != null && ch.doing.path.size > 0) { ch.doing.path[0] } else { null }
+            o.doingTarget = arrayOf(ch.doing.cmd.toward.x, ch.doing.cmd.toward.y)
+            o.moving = ch.moving
+            o.swapping = ch.swapping
             r.push(o)
         }
         r
@@ -32,53 +37,53 @@ fun createExports() : dynamic {
                 val ord = s.logical.board.ordOfCoords(j.toDouble() + 0.5, i.toDouble() + 0.5)
                 val sq = s.logical.board.square[ord.idx]
                 val door = s.logical.board.doors[ord.idx]
-                if (door != null) {
-                    if (door.vertical) {
+                val ch = chars[ord.idx]
+                if (sq.role == SquareRole.COMMAND_SEAT) {
+                    if (ch != null) {
+                        res.add("@")
+                    } else {
+                        if (sq.assoc == SquareAssoc.BRIDGE) {
+                            res.add("B")
+                        } else if (sq.assoc == SquareAssoc.ENGINEERING) {
+                            res.add("E")
+                        } else if (sq.assoc == SquareAssoc.LIFE_SUPPORT) {
+                            res.add("L")
+                        } else if (sq.assoc == SquareAssoc.MEDICAL) {
+                            res.add("M")
+                        } else {
+                            res.add("S")
+                        }
+                    }
+                } else if (door != null) {
+                    if (door.amtOpen > 0.75) {
+                        res.add("_")
+                    } else if (door.vertical) {
                         res.add("|")
                     } else {
                         res.add("-")
                     }
-                } else {
-                    val ch = chars[ord.idx]
-                    if (sq.role == SquareRole.COMMAND_SEAT) {
-                        if (ch != null) {
-                            res.add("@")
-                        } else {
-                            if (sq.assoc == SquareAssoc.BRIDGE) {
-                                res.add("B")
-                            } else if (sq.assoc == SquareAssoc.ENGINEERING) {
-                                res.add("E")
-                            } else if (sq.assoc == SquareAssoc.LIFE_SUPPORT) {
-                                res.add("L")
-                            } else if (sq.assoc == SquareAssoc.MEDICAL) {
-                                res.add("M")
-                            } else {
-                                res.add("S")
-                            }
-                        }
-                    } else if (sq.role == SquareRole.WORK_STATION) {
-                        if (sq.assoc == SquareAssoc.BRIDGE) {
-                            res.add("b")
-                        } else if (sq.assoc == SquareAssoc.ENGINEERING) {
-                            res.add("e")
-                        } else if (sq.assoc == SquareAssoc.LIFE_SUPPORT) {
-                            res.add("l")
-                        } else if (sq.assoc == SquareAssoc.MEDICAL) {
-                            res.add("m")
-                        } else {
-                            res.add("s")
-                        }
-                    } else if (sq.role == SquareRole.WALL) {
-                        res.add("#")
-                    } else if (ch != null) {
-                        if (ch == -1) {
-                            res.add("X")
-                        } else {
-                            res.add(ch.toString())
-                        }
+                } else if (sq.role == SquareRole.WORK_STATION) {
+                    if (sq.assoc == SquareAssoc.BRIDGE) {
+                        res.add("b")
+                    } else if (sq.assoc == SquareAssoc.ENGINEERING) {
+                        res.add("e")
+                    } else if (sq.assoc == SquareAssoc.LIFE_SUPPORT) {
+                        res.add("l")
+                    } else if (sq.assoc == SquareAssoc.MEDICAL) {
+                        res.add("m")
                     } else {
-                        res.add(".")
+                        res.add("s")
                     }
+                } else if (sq.role == SquareRole.WALL) {
+                    res.add("#")
+                } else if (ch != null) {
+                    if (ch == -1) {
+                        res.add("X")
+                    } else {
+                        res.add(ch.toString())
+                    }
+                } else {
+                    res.add(".")
                 }
             }
         }

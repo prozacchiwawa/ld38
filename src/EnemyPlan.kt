@@ -44,8 +44,10 @@ data class EnemyPlan(val team : Int, val elapsed : Double = 0.0, val unitPlans :
             } else {
                 // Use 1 in 3 recruits for command, should win in the absence of anything else happening
                 val commandUsers = newPlans.entries.filter { p -> p.value.intention == Intention.Command }.map { e -> Pair(e.key,e.value) }.toMap()
+                console.log("$team Choosing to win! ${commandUsers}")
                 val nonCommandUsers = ArrayList<Pair<String,PlanInfo>>(newPlans.entries.filter { p -> p.value.intention != Intention.Command }.map { e -> Pair(e.key,e.value) })
                 if (commandUsers.count() < 3) {
+                    console.log("We have ${commandUsers.count()} users set to getting command chairs")
                     // Select new command users.
                     for (i in 0..(3 - commandUsers.count())) {
                         val randomNonCommandUser = Math.floor(rand() * nonCommandUsers.count())
@@ -61,9 +63,9 @@ data class EnemyPlan(val team : Int, val elapsed : Double = 0.0, val unitPlans :
                             if (closeChair != null) {
                                 val coords = Pair(closeChair.x, closeChair.y)
                                 newPlans = newPlans.plus(
-                                        Pair(randomNonCommandPicked.first, PlanInfo(Intention.Command, charTarget = null, posTarget = state.logical.board.ordOfCoords(coords)))
+                                        Pair(randomNonCommandPicked.first, PlanInfo(Intention.Command, charTarget = null, posTarget = state.logical.board.ordOfCoords(coords).round()))
                                 )
-                                state = state.useCommand(randomNonCommandPicked.first, Command(CommandType.IDLE, whereAmI.at, whereAmI.at))
+                                state = state.useCommand(randomNonCommandPicked.first, Command(CommandType.IDLE, closeChair, closeChair))
                             }
                         }
                     }

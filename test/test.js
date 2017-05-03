@@ -21,7 +21,6 @@ function sendLine(l) {
 
 runGame.scan({}, function(seed,event) {
     var res = seed;
-    console.log('event',event);
     if (event.type === 'start') {
         res = event.data;
         if (res.hopper.length == 0) {
@@ -34,7 +33,7 @@ runGame.scan({}, function(seed,event) {
         if (res.running) {
             res.running = setTimeout(function() { runGame.push({type: 'runauto'}); }, 100);
             res.state = ld38.run(res.state, 0.1);
-            console.log(ld38.showBoard(res.state));
+            //console.log(ld38.showBoard(res.state));
         }
     } else if (event.type === 'readline') {
         if (res.running) {
@@ -53,11 +52,19 @@ runGame.scan({}, function(seed,event) {
                         rl.write('  ' + l + ': ' + res.remaining[k][l]+'\n');
                     }
                 }
+            } else if (event.data === 'chars') {
+                for (var i = 0; i < 4; i++) {
+                    console.log('==== ' + i + ' ====');
+                    var l = ld38.getCharList(i,res.state);
+                    for (var k in l) {
+                        console.log(l[k])
+                    }
+                }
             } else if (event.data === 'board') {
                 rl.write(ld38.showBoard(res.state)+'\n');
-	        } else if (event.data.indexOf('pathfind') === 0) {
-		        var coords = event.data.split(' ');
-		        coords.shift();
+	    } else if (event.data.indexOf('pathfind') === 0) {
+	        var coords = event.data.split(' ');
+	        coords.shift();
                 var path = ld38.pathfind(res.state, parseInt(coords[0]), parseInt(coords[1]), parseInt(coords[2]), parseInt(coords[3]));
                 console.log(path);
             } else if (event.data === 'run') {
