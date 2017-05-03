@@ -523,7 +523,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                         val rawCollision: Set<String> = logical.getCollision().collide(nextAt.id, nextAt)
                         val canPassChars = rawCollision.filter { id ->
                             val ch = logical.getCharacters()[id]
-                            ch != null && ch.team == kv.team
+                            ch != null && ch.swapping == null && (ch.moving == null || ch.moving.first == kv.at) && ch.team == kv.team
                         }.toSet()
                         val mustFightChars = rawCollision.filter { id ->
                             val ch = logical.getCharacters()[id]
