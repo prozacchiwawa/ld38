@@ -7,7 +7,8 @@ package ldjam.prozacchiwawa
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.CanvasTextBaseline
 import org.w3c.dom.TOP
-import kotlin.js.Math
+import kotlin.math.floor
+import kotlin.math.max
 
 val textSpacingVert = 5.0
 val menuBorderSize = 5.0
@@ -30,7 +31,7 @@ data class Menu<T>(val selections : ArrayList<Pair<String,T>>, val tall : Double
                 console.log("off edge")
                 return null
             }
-            val step = Math.floor((y - menuBorderSize - p.top) / (tall + textSpacingVert))
+            val step = floor((y - menuBorderSize - p.top) / (tall + textSpacingVert)).toInt()
             console.log("step",step)
             if (step < 0 || step >= selections.size) {
                 return null
@@ -52,7 +53,7 @@ data class Menu<T>(val selections : ArrayList<Pair<String,T>>, val tall : Double
         ctx.font = "${tall}px serif"
         for (s in selections) {
             val metrics = ctx.measureText(s.first)
-            width = Math.max(width, metrics.width)
+            width = max(width, metrics.width)
         }
         var left = near.left - sep - width - 2.0 * menuBorderSize
         if (near.left + near.width + sep + width + 2.0 * menuBorderSize < screenX) {

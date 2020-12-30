@@ -4,7 +4,10 @@
 
 package ldjam.prozacchiwawa
 
-import kotlin.js.Math
+import kotlin.math.floor
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
 
 val DOOR_START_HP = 50.0
 val CHAR_START_HP = 30.0
@@ -14,7 +17,7 @@ val SWAP_TIME = 0.5
 fun distance(x : Double, y : Double, s : Double, t : Double) : Double {
     val dx = (x - s)
     val dy = (y - t)
-    return Math.sqrt((dx * dx) + (dy * dy))
+    return sqrt((dx * dx) + (dy * dy))
 }
 
 public enum class SquareRole {
@@ -48,18 +51,18 @@ public data class Ord(val idx : Int, val x : Double, val y : Double, val dimX : 
     fun add(x : Double, y : Double) : Ord {
         val nx = this.x + x
         val ny = this.y + y
-        val newIdx = (Math.floor(ny) * dimX) + Math.floor(nx)
+        val newIdx = (floor(ny) * dimX).toInt() + floor(nx).toInt()
         return Ord(newIdx, nx, ny, dimX)
     }
 
     fun set(nx : Double, ny : Double) : Ord {
-        val newIdx = (Math.floor(ny) * dimX) + Math.floor(nx)
+        val newIdx = (floor(ny) * dimX).toInt() + floor(nx).toInt()
         return Ord(newIdx, nx, ny, dimX)
     }
 
     fun round() : Ord {
-        val nx = Math.floor(this.x) + 0.5
-        val ny = Math.floor(this.y) + 0.5
+        val nx = floor(this.x) + 0.5
+        val ny = floor(this.y) + 0.5
         return this.set(nx, ny)
     }
 }
@@ -107,7 +110,7 @@ public data class GameBoard(
         }
     }
 
-    fun ordOfCoords(x : Double, y : Double) : Ord { return Ord((Math.floor(y) * dimX) + Math.floor(x), x, y, dimX) }
+    fun ordOfCoords(x : Double, y : Double) : Ord { return Ord((floor(y) * dimX).toInt() + floor(x).toInt(), x, y, dimX) }
     fun ordOfCoords(p : Pair<Double,Double>) : Ord { return ordOfCoords(p.first, p.second) }
     fun ordOfIdx(i : Int) : Ord {
         val y = i / dimX
@@ -349,7 +352,7 @@ fun bitsToNeighbors(bits : Int, pt : Ord) : Iterable<Ord> {
 }
 
 fun directionOf(a : Ord, b : Ord) : CharacterDirection {
-    if (Math.floor(a.x) == Math.floor(b.x)) {
+    if (floor(a.x) == floor(b.x)) {
         if (a.idx < b.idx) { return CharacterDirection.SOUTH } else { return CharacterDirection.NORTH }
     } else {
         if (a.idx < b.idx) { return CharacterDirection.EAST } else { return CharacterDirection.WEST }
@@ -414,10 +417,10 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
     }
 
     fun halfinate(t : Double, arg : Double) : Double {
-        val towardInt = Math.floor(arg)
+        val towardInt = floor(arg)
         val toward = towardInt + 0.5
-        if (toward > arg) { return Math.min(arg + t, toward) }
-        else { return Math.max(arg - t, toward) }
+        if (toward > arg) { return min(arg + t, toward) }
+        else { return max(arg - t, toward) }
     }
 
     fun enemyPlan(t : Double) : GameState {
@@ -444,7 +447,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
             }
         }
         if (randomCharsToFight.size > 0) {
-            return randomCharsToFight[Math.floor(rand() * randomCharsToFight.size)]?.id
+            return randomCharsToFight[floor(rand() * randomCharsToFight.size).toInt()]?.id
         } else {
             return null
         }
@@ -455,9 +458,9 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
             if (kv.value.locked || kv.value.openTime + t > DOOR_CLOSE_TIME) {
                 Pair(kv.key, kv.value.copy(wantState = false, openTime = kv.value.openTime + t))
             } else if (kv.value.wantState && kv.value.amtOpen < 1.0) {
-                Pair(kv.key, kv.value.copy(amtOpen = Math.min(1.0, kv.value.amtOpen + t / DOOR_OPEN_TIME), openTime = kv.value.openTime + t))
+                Pair(kv.key, kv.value.copy(amtOpen = min(1.0, kv.value.amtOpen + t / DOOR_OPEN_TIME), openTime = kv.value.openTime + t))
             } else if (!kv.value.wantState && kv.value.amtOpen > 0.0) {
-                Pair(kv.key, kv.value.copy(amtOpen = Math.max(0.0, kv.value.amtOpen - t / DOOR_OPEN_TIME), openTime = kv.value.openTime + t))
+                Pair(kv.key, kv.value.copy(amtOpen = max(0.0, kv.value.amtOpen - t / DOOR_OPEN_TIME), openTime = kv.value.openTime + t))
             } else {
                 Pair(kv.key, kv.value.copy(openTime = kv.value.openTime + t))
             }
@@ -470,16 +473,16 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
         // For each character that has a pending action, try to move the character closer to where it's going
         var updatedCharacters = logical.getCharacters().values.map { kv ->
             if (kv.swapping != null) {
-                val sw = Math.max(kv.swapping.second - t, 0.0)
+                val sw = max(kv.swapping.second - t, 0.0)
                 val nx = if (kv.at.x < kv.swapping.first.x) {
-                    Math.min(kv.at.x + (t / SWAP_TIME), kv.swapping.first.x)
+                    min(kv.at.x + (t / SWAP_TIME), kv.swapping.first.x)
                 } else {
-                    Math.max(kv.at.x - (t / SWAP_TIME), kv.swapping.first.x)
+                    max(kv.at.x - (t / SWAP_TIME), kv.swapping.first.x)
                 }
                 val ny = if (kv.at.y < kv.swapping.first.y) {
-                    Math.min(kv.at.y + (t / SWAP_TIME), kv.swapping.first.y)
+                    min(kv.at.y + (t / SWAP_TIME), kv.swapping.first.y)
                 } else {
-                    Math.max(kv.at.y - (t / SWAP_TIME), kv.swapping.first.y)
+                    max(kv.at.y - (t / SWAP_TIME), kv.swapping.first.y)
                 }
                 val newSwap = if (nx == kv.swapping.first.x && ny == kv.swapping.first.y) {
                     null
@@ -491,13 +494,13 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                 val toward = kv.moving.first
                 var makeNew = { kv: Character -> kv }
                 if (kv.at.x < toward.x) {
-                    makeNew = { kv: Character -> kv.copy(at = kv.at.set(Math.min(kv.at.x + t / TILE_WALK_TIME, toward.x), halfinate(t, kv.at.y))) }
+                    makeNew = { kv: Character -> kv.copy(at = kv.at.set(min(kv.at.x + t / TILE_WALK_TIME, toward.x), halfinate(t, kv.at.y))) }
                 } else if (kv.at.x > toward.x) {
-                    makeNew = { kv: Character -> kv.copy(at = kv.at.set(Math.max(kv.at.x - t / TILE_WALK_TIME, toward.x), halfinate(t, kv.at.y))) }
+                    makeNew = { kv: Character -> kv.copy(at = kv.at.set(max(kv.at.x - t / TILE_WALK_TIME, toward.x), halfinate(t, kv.at.y))) }
                 } else if (kv.at.y < toward.y) {
-                    makeNew = { kv: Character -> kv.copy(at = kv.at.set(halfinate(t, kv.at.x), Math.min(kv.at.y + t / TILE_WALK_TIME, toward.y))) }
+                    makeNew = { kv: Character -> kv.copy(at = kv.at.set(halfinate(t, kv.at.x), min(kv.at.y + t / TILE_WALK_TIME, toward.y))) }
                 } else if (kv.at.y > toward.y) {
-                    makeNew = { kv: Character -> kv.copy(at = kv.at.set(halfinate(t, kv.at.x), Math.max(kv.at.y - t / TILE_WALK_TIME, toward.y))) }
+                    makeNew = { kv: Character -> kv.copy(at = kv.at.set(halfinate(t, kv.at.x), max(kv.at.y - t / TILE_WALK_TIME, toward.y))) }
                 }
                 val newCh = makeNew(kv)
                 if (newCh.at.x == toward.x && newCh.at.y == toward.y) {
@@ -506,7 +509,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
                     newCh.copy(moving = Pair(kv.moving.first, kv.moving.second + t), dir = directionOf(kv.at, toward))
                 }
             } else if (kv.cool > 0.0) {
-                kv.copy(cool = Math.max(kv.cool - t, 0.0))
+                kv.copy(cool = max(kv.cool - t, 0.0))
             } else if (kv.doing.path != null && kv.doing.path.size > 0) {
                 val toward = kv.doing.path[0]
                 if (toward.idx == kv.at.idx) {
@@ -600,7 +603,7 @@ public class GameState(logical : GameStateData, display : GameDisplay = GameDisp
             val currentState = newCharacters.get(p.key)
             var newCool = rand() * 0.1
             if (currentState != null) {
-                val newHealth = Math.max(currentState.health - p.value.second, 1.0)
+                val newHealth = max(currentState.health - p.value.second, 1.0)
                 var newTeam = currentState.team
                 if (newHealth == 1.0) {
                     newTeam = p.value.first

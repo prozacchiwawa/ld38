@@ -5,7 +5,7 @@
 package ldjam.prozacchiwawa
 
 import org.w3c.dom.CharacterData
-import kotlin.js.Math
+import kotlin.math.floor
 
 val normalRanks : ArrayList<String> =
         arrayListOf("crewman", "ensign", "chief")
@@ -102,8 +102,8 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
     var xdim = 0
     for (i in 0..(ydim - 1)) {
         var st = s[i]
-        if (st.size > xdim) {
-            xdim = st.size
+        if (st.length > xdim) {
+            xdim = st.length
         }
     }
     val boardContents = ArrayList<Square>()
@@ -115,7 +115,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
         for (j in 0..(xdim - 1)) {
             var ch = '#'
             val st = s[i]
-            if (j < st.size) {
+            if (j < st.length) {
                 ch = st[j]
             }
             val idx = (i * xdim) + j
@@ -214,7 +214,7 @@ fun simpleBoardConvert(s : Array<String>) : GameState {
     var assignedTeamLeads = 0
     while (assignedTeamLeads < 4) {
         // Select a character randomly to be the player char's starting faction member
-        val whoAmI = chosenNames[Math.floor(rand() * chosenNames.size)]
+        val whoAmI = chosenNames[floor(rand() * chosenNames.size).toInt()]
         val myChar = characters[whoAmI]
         if (myChar != null && myChar.team == -1) {
             characters.put(whoAmI, myChar.copy(team = assignedTeamLeads++))

@@ -4,7 +4,7 @@
 
 package ldjam.prozacchiwawa
 
-import kotlin.js.Math
+import kotlin.math.floor
 
 val RECOMPUTE_TIME = 1.0
 
@@ -33,7 +33,7 @@ data class EnemyPlan(val team : Int, val elapsed : Double = 0.0, val unitPlans :
                 val unfollowed = ArrayList <Character>(state.logical.getCharacters().values.filter { ch -> ch.team != team && !followed.contains(ch.id) }.sortedBy { ch -> ch.team })
                 for (r in newRecruits) {
                     // Pick a target nobody else is following yet.
-                    val randomToFollow = Math.floor(rand() * unfollowed.size)
+                    val randomToFollow = floor(rand() * unfollowed.size).toInt()
                     var ch = unfollowed[randomToFollow]
                     console.log("recruit ${ch}")
                     newPlans = newPlans.plus(Pair(r.id, PlanInfo(Intention.Recruit, posTarget = ch.at, charTarget = ch.id)))
@@ -50,7 +50,7 @@ data class EnemyPlan(val team : Int, val elapsed : Double = 0.0, val unitPlans :
                     console.log("We have ${commandUsers.count()} users set to getting command chairs")
                     // Select new command users.
                     for (i in 0..(3 - commandUsers.count())) {
-                        val randomNonCommandUser = Math.floor(rand() * nonCommandUsers.count())
+                        val randomNonCommandUser = floor(rand() * nonCommandUsers.count()).toInt()
                         val randomNonCommandPicked = nonCommandUsers[randomNonCommandUser]
                         nonCommandUsers.removeAt(randomNonCommandUser)
                         // find the closest command chair
@@ -79,10 +79,10 @@ data class EnemyPlan(val team : Int, val elapsed : Double = 0.0, val unitPlans :
                                 listOf()
                             }
                         })
-                        val randomChairNum = Math.floor(rand() * chairsWeWant.size)
+                        val randomChairNum = floor(rand() * chairsWeWant.size).toInt()
                         val randomChair = chairsWeWant[randomChairNum]
                         val neighbors = ArrayList<Ord>(bitsToNeighbors(state.logical.board.getNeighbors(randomChair).xor(15), randomChair).toList())
-                        val chosenPt = neighbors[Math.floor(rand() * neighbors.size)]
+                        val chosenPt = neighbors[floor(rand() * neighbors.size).toInt()]
                         newPlans = newPlans.plus(Pair(n.id, PlanInfo(Intention.Guard, chosenPt, null)))
                         state = state.useCommand(n.id, Command(CommandType.ATTACK, chosenPt, chosenPt))
                     }

@@ -6,7 +6,9 @@ package ldjam.prozacchiwawa
 
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
-import kotlin.js.Math
+import kotlin.math.PI
+import kotlin.math.floor
+import kotlin.math.min
 
 val CHICKEN_SPRITE = 0
 val BED_SPRITE = 1
@@ -23,7 +25,7 @@ val FLOOR_SPRITE = 28
 val WALL_CORNER = 24
 val WALL_LONG = 25
 
-val TO_RADIANS = Math.PI/180
+val TO_RADIANS = PI/180
 
 data class AnimationDesc(val sequence: Iterable<Int>, val time : Double) { }
 
@@ -103,7 +105,7 @@ fun placeSpriteRotated(assets : Assets, dim : BoardDim, ctx : CanvasRenderingCon
 fun getBoardSize(screenx : Double, screeny : Double, board : GameBoard) : BoardDim {
     val tileWidthMax = screenx / board.dimX
     val tileHeightMax = screeny / board.dimY
-    val tileSize : Double = Math.min(tileWidthMax, tileHeightMax)
+    val tileSize : Double = min(tileWidthMax, tileHeightMax)
     val boardHeight = board.dimY.toDouble() * tileSize
     val boardWidth = board.dimX.toDouble() * tileSize
     val boardTop = (screeny - boardHeight) / 2.0
@@ -227,8 +229,8 @@ fun drawBaseBoard(ctx : CanvasRenderingContext2D, state : GameState, assets : As
 
 fun makeBaseBoard(state : GameState, scale : Double, assets : Assets) : HTMLCanvasElement {
     val canvas : HTMLCanvasElement = kotlin.browser.document.createElement("canvas").asDynamic()
-    canvas.width = Math.floor(state.logical.board.dimX * TILESIZE)
-    canvas.height = Math.floor(state.logical.board.dimY * TILESIZE)
+    canvas.width = floor(state.logical.board.dimX * TILESIZE).toInt()
+    canvas.height = floor(state.logical.board.dimY * TILESIZE).toInt()
     val ctx : CanvasRenderingContext2D = canvas.getContext("2d").asDynamic()
     drawBaseBoard(ctx, state, assets)
     return canvas
@@ -273,11 +275,11 @@ fun drawBoard(ctx : CanvasRenderingContext2D, state : GameState, base : HTMLCanv
         val animStart = charAnimations[disp.value.animation]
         if (ch != null && animStart != null) {
             val elapsed = lastTime - disp.value.animstart
-            val whichCycle = Math.floor(elapsed / animStart.time)
+            val whichCycle = floor(elapsed / animStart.time)
             val frameFrac = (elapsed / animStart.time) - whichCycle
             val aframes = ArrayList<Int>()
             aframes.plusAssign(animStart.sequence)
-            val whichFrame = aframes[Math.floor(frameFrac * aframes.size)]
+            val whichFrame = aframes[floor(frameFrac * aframes.size).toInt()]
             val scaleFactor = 1.5
             val offset = 0.5 * scaleFactor
             placeCharBigger(assets, dim, ctx, ch.team, whichFrame, ch.at.x, ch.at.y, scaleFactor)

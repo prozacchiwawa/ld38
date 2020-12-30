@@ -5,7 +5,8 @@
 package ldjam.prozacchiwawa
 
 import org.w3c.dom.*
-import kotlin.js.Math
+import kotlin.math.floor
+import kotlin.math.max
 
 val PAUSE_BUTTON_TEXT = 30.0
 val PAUSE_BUTTON_MARGIN = 7.5
@@ -22,7 +23,7 @@ data class ClickAnim(var x : Double, var y : Double, val start : Double, val at 
 
     fun render(ctx : CanvasRenderingContext2D) {
         val rad = 90.0 * at
-        val fade = Math.max(0.0, 2.0 * (0.3 - at))
+        val fade = max(0.0, 2.0 * (0.3 - at))
         val grd = ctx.createRadialGradient(x, y, 0.0, x, y, rad)
         grd.addColorStop(0.0, "rgba(${color.r},${color.g},${color.b},0.0)")
         grd.addColorStop(1.0, "rgba(${color.r},${color.g},${color.b},${fade})")
@@ -45,7 +46,7 @@ class SpriteAnim(val frames : Iterable<Int>, val duration : Double, val x : Doub
     }
 
     fun render(dim : BoardDim, ctx : CanvasRenderingContext2D) {
-        val frame = Math.floor((elapsed / duration) * frameList.size)
+        val frame = floor((elapsed / duration) * frameList.size).toInt()
         val atX = dim.boardLeft + (dim.tileSize * x)
         val atY = dim.boardTop + (dim.tileSize * y)
         console.log("Render ${frame} at ${atX},${atY}")
@@ -81,7 +82,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
         if (boardScale == 0.0) {
             var xScale = screenX / (state.logical.board.dimX * TILESIZE)
             var yScale = screenY / (state.logical.board.dimY * TILESIZE)
-            boardScale = Math.max(xScale, yScale)
+            boardScale = max(xScale, yScale)
         }
 
         var width = state.logical.board.dimX * TILESIZE * boardScale
@@ -103,7 +104,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
         if ((rand() * 90.0).toInt() == 0) {
             val doors = state.logical.board.doors.filter { d -> d.value.hp == 0.0 }.toList()
             if (doors.size > 0) {
-                val theDoor = Math.floor(rand() * doors.size)
+                val theDoor = floor(rand() * doors.size).toInt()
                 val door = doors[theDoor]
                 val ord = state.logical.board.ordOfIdx(door.first)
                 doorSparks = doorSparks.plus(SpriteAnim(15..19, 0.5, ord.x, ord.y))
@@ -168,7 +169,7 @@ class YourTurnMode(var state : GameState) : IGameMode {
         }
 
         if (go != null) {
-            val mouse = mouse.set(Math.floor(mouse.x) + 0.5, Math.floor(mouse.y) + 0.5)
+            val mouse = mouse.set(floor(mouse.x) + 0.5, floor(mouse.y) + 0.5)
             state = state.useCommand(go, Command(CommandType.IDLE, mouse, mouse))
             showMe = null
             givingOrder = null
@@ -288,10 +289,10 @@ class YourTurnMode(var state : GameState) : IGameMode {
 
         val s = sel
         if (s != null) {
-            val tx = Math.floor(s.x)
-            val ty = Math.floor(s.y)
+            val tx = floor(s.x)
+            val ty = floor(s.y)
             ctx.fillStyle = "rgba(255,255,128,0.5)"
-            ctx.fillRect(dim.boardLeft + (Math.floor(s.x) * dim.tileSize), dim.boardTop + (Math.floor(s.y) * dim.tileSize), dim.tileSize, dim.tileSize)
+            ctx.fillRect(dim.boardLeft + (floor(s.x) * dim.tileSize), dim.boardTop + (floor(s.y) * dim.tileSize), dim.tileSize, dim.tileSize)
         }
 
         ctx.font = "${PAUSE_BUTTON_TEXT}px Serif"

@@ -10,7 +10,9 @@ import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.ImageBitmap
 import org.w3c.dom.ImageData
-import kotlin.js.Math
+import kotlin.math.PI
+import kotlin.math.max
+import kotlin.math.min
 
 // My brother made the character art with a green vest to indicate team.
 // the method we thought of to chroma key these was to detect pixel color by HLS value
@@ -36,10 +38,10 @@ fun rgbaToHLSA(rgba : RGBA) : HLSA {
     var s = 0.0
     var l = 0.0
 
-    v = Math.max(r,g)
-    v = Math.max(v,b)
-    m = Math.min(r,g)
-    m = Math.min(m,b)
+    v = max(r,g)
+    v = max(v,b)
+    m = min(r,g)
+    m = min(m,b)
     l = (m + v) / 2.0
 
     if (l <= 0.0)
@@ -93,7 +95,7 @@ fun rgbaToHLSA(rgba : RGBA) : HLSA {
 
     h /= 6.0
 
-    return HLSA(h*Math.PI*2.0,l,s,rgba.a)
+    return HLSA(h*PI*2.0,l,s,rgba.a)
 }
 
 val GREEN_HUE = 120.0
